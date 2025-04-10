@@ -46,7 +46,6 @@ const methodName = "start";     //指定当前事件刷新Boss的函数，无需
 function init() {
     channel = em.getChannelServer().getId();
     log = LoggerFactory.getLogger(em.getName());
-    BossTime = em.getBossTime(BossTime * 60 * 1000);  //转为毫秒并加载时间倍率修正
     start();
     scheduleNew();
 }
@@ -63,22 +62,23 @@ function cancelSchedule() {
 
 function start() {
     var graysPrairie = em.getChannelServer().getMapFactory().getMap(MapID);
-
+    var Timer = em.getBossTime(BossTime * 60 * 1000);  //转为毫秒并加载时间倍率修正
+    
     if (graysPrairie.getMonsterById(BossID) != null) {
-        em.schedule(methodName, BossTime);
+        em.schedule(methodName, Timer);
         return;
     }
     const BossObj = LifeFactory.getMonster(BossID);
     BossName = BossObj.getName() || BossName;
     try {
         graysPrairie.spawnMonsterOnGroundBelow(BossObj, point);
-        log.info(`[事件脚本-野外BOSS] ${em.getName()} 已在频道 ${channel} 的 ${graysPrairie.getMapName()}(${MapID}) ${point.x} , ${point.y}) 生成 ${BossName}(${BossID})，检测间隔：${BossTime / 60 / 1000} 分`);
+        log.info(`[事件脚本-野外BOSS] ${em.getName()} 已在频道 ${channel} 的 ${graysPrairie.getMapName()}(${MapID}) ${point.x} , ${point.y}) 生成 ${BossName}(${BossID})，检测间隔：${Timer / 60 / 1000} 分钟`);
     } catch (e) {
         console.error(`[事件脚本-野外BOSS] ${em.getName()} 在频道 ${channel} 的 ${graysPrairie.getMapName()}(${MapID}) ${point.x} , ${point.y}) 生成 ${BossName}(${BossID}) 时出错`,e);
     }
     graysPrairie.broadcastMessage(PacketCreator.serverNotice(6, `[野外BOSS] ${BossName}  ${BossNotice}`));     //聊天框输出当前地图范围的Boss登场消息
 
-    em.schedule(methodName, BossTime);
+    em.schedule(methodName, Timer);
 }
 
 // ---------- FILLER FUNCTIONS ----------
