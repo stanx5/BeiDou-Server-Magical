@@ -34,7 +34,7 @@ function enter(pi) {
             return true;
         }
     } else {
-        pi.message("A strange force is blocking you from entering.");
+        pi.message("一股神秘力量阻挡了你的进入");
         return false;
     }
 }
