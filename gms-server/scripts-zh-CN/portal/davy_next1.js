@@ -10,7 +10,7 @@ function enter(pi) {
             return false;
         }
     } catch (e) {
-        pi.playerMessage(5, "Error: " + e);
+        pi.playerMessage(5, "传送门故障，请联系管理员处理");
     }
 
     return false;

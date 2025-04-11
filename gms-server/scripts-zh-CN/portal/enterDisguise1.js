@@ -33,7 +33,7 @@ function enter(pi) {
         }
 
         if (pi.haveItem(4032101 + jobtype, 1)) {
-            pi.message("你已挑战过伪装大师，请向骑士团长报告你的成功。");
+            pi.message("你已挑战过变身术士，请向骑士团长报告你的成功。");
             return false;
         }
 

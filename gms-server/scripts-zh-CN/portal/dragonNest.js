@@ -27,7 +27,7 @@ function enter(pi) {
     } else if (pi.isQuestStarted(100203) || pi.getPlayer().haveItem(4001094)) {
         var em = pi.getEventManager("NineSpirit");
         if (!em.startInstance(pi.getPlayer())) {
-            pi.message("There is currently someone in this map, come back later.");
+            pi.message("当前地图已有其他玩家，请稍后再试");
             return false;
         } else {
             pi.playPortalSound();

@@ -104,7 +104,7 @@ function enter(pi) {
         if (avail == null) {
             if (pi.haveItem(4001092) && pi.isEventLeader()) {
                 eim.showClearEffect();
-                pi.getPlayer().dropMessage(6, "The leader's key break the seal for a flash...");
+                pi.getPlayer().dropMessage(6, "队长的红色钥匙瞬间打破了封印...");
                 pi.playPortalSound();
                 pi.getPlayer().changeMap(target, targetPortal);
                 eim.setIntProperty("5stageclear", 1);
