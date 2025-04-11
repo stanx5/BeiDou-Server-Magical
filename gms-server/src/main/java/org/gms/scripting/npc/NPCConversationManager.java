@@ -96,6 +96,8 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
     @Getter
     private final NextLevelContext nextLevelContext = new NextLevelContext();
 
+    private  String errorMsg;
+
     private String getDefaultTalk(int npcid) {
         String talk = npcDefaultTalks.get(npcid);
         if (talk == null) {
