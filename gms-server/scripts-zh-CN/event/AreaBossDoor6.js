@@ -25,8 +25,9 @@ const LifeFactory = Java.type('org.gms.server.life.LifeFactory');
 const PacketCreator = Java.type('org.gms.util.PacketCreator');
 const LoggerFactory = Java.type('org.slf4j.LoggerFactory');
 var log = null;
-
 var channel = null;
+var isinit = false;
+
 var MapID = 677000007;
 var BossID = 9400611;
 var BossName = "雪之猫女";
@@ -46,7 +47,7 @@ const methodName = "start";     //指定当前事件刷新Boss的函数，无需
 function init() {
     channel = em.getChannelServer().getId();
     log = LoggerFactory.getLogger(em.getName());
-    start();
+  
     scheduleNew();
 }
 
@@ -72,7 +73,11 @@ function start() {
     BossName = BossObj.getName() || BossName;
     try {
         graysPrairie.spawnMonsterOnGroundBelow(BossObj, point);
-        log.info(`[事件脚本-野外BOSS] ${em.getName()} 已在频道 ${channel} 的 ${graysPrairie.getMapName()}(${MapID}) ${point.x} , ${point.y}) 生成 ${BossName}(${BossID})，检测间隔：${Timer / 60 / 1000} 分钟`);
+        if(isinit) {
+            log.info(`[事件脚本-野外BOSS] ${em.getName()} 已在频道 ${channel} 的 ${graysPrairie.getMapName()}(${MapID}) ${point.x} , ${point.y}) 生成 ${BossName}(${BossID})，检测间隔：${Timer / 60 / 1000} 分钟`);
+        } else {
+            isinit = true;
+        }
     } catch (e) {
         console.error(`[事件脚本-野外BOSS] ${em.getName()} 在频道 ${channel} 的 ${graysPrairie.getMapName()}(${MapID}) ${point.x} , ${point.y}) 生成 ${BossName}(${BossID}) 时出错`,e);
     }
