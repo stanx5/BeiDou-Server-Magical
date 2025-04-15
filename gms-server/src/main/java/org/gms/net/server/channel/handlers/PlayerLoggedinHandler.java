@@ -173,7 +173,6 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
             }
             c.setPlayer(player);
             c.setAccID(player.getAccountId());
-
             boolean allowLogin = true;
 
                 /*  is this check really necessary?
@@ -394,9 +393,10 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
                         player.sendPacket(PacketCreator.earnTitleMessage("You can vote now! Vote and earn a vote point!"));
                     }
                     */
+                log.info("客户端 {} 账号 {} 角色 {} 登录了游戏，在频道 {}。",c.getRemoteAddress(),c.getAccountName(),player.getName(),c.getChannelServer().getId());
                 if (player.isGM()) {
                     Server.getInstance().broadcastGMMessage(c.getWorld(), PacketCreator.earnTitleMessage((player.gmLevel() < 6 ? "GM " : "Admin ") + player.getName() + " 登录了游戏"));
-                }else {
+                } else {
                     if (GameConfig.getServerBoolean("use_login_notification")) {
                         String msg = I18nUtil.getMessage("Character.login.globalNotice", player.getName());
                         Server.getInstance().broadcastMessage(c.getWorld(), PacketCreator.serverNotice(3, c.getChannel(), msg));
@@ -409,6 +409,7 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
                     }
                 }
             } else {
+                log.info("客户端 {} 账号 {} 角色 {} 进入频道 {}。",c.getRemoteAddress(),c.getAccountName(),player.getName(),c.getChannelServer().getId());
                 if (player.isRidingBattleship()) {
                     player.announceBattleshipHp();
                 }

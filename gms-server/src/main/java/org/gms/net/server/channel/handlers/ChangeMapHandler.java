@@ -205,6 +205,7 @@ public final class ChangeMapHandler extends AbstractPacketHandler {
         } catch (UnknownHostException ex) {
             ex.printStackTrace();
         }
+        log.info("客户端 {} 账号 {} 角色 {} 离开了商城。",c.getRemoteAddress(),c.getAccountName(),c.getPlayer().getName());  //记录日志
     }
 
     /**
