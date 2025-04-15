@@ -32,42 +32,42 @@ import org.slf4j.LoggerFactory;
 import org.gms.server.ChatLogger;
 import org.gms.util.PacketCreator;
 
-public final class GeneralChatHandler extends AbstractPacketHandler {
-    private static final Logger log = LoggerFactory.getLogger(GeneralChatHandler.class);
+public final class GeneralChatHandler extends AbstractPacketHandler {  //定义全局聊天处理器（final类不可继承）
+    private static final Logger log = LoggerFactory.getLogger(GeneralChatHandler.class);  //获取当前类的日志记录器
 
     @Override
-    public void handlePacket(InPacket p, Client c) {
-        String s = p.readString();
-        Character chr = c.getPlayer();
-        if (chr.getAutoBanManager().getLastSpam(7) + 200 > currentServerTime()) {
-            c.sendPacket(PacketCreator.enableActions());
+    public void handlePacket(InPacket p, Client c) {  //处理聊天数据包的核心方法
+        String s = p.readString();  //从数据包读取聊天内容
+        Character chr = c.getPlayer();  //获取发送聊天的玩家角色对象
+        if (chr.getAutoBanManager().getLastSpam(7) + 200 > currentServerTime()) {// 检查聊天冷却时间（200ms内重复发言会被拦截）
+            c.sendPacket(PacketCreator.enableActions());  //发送允许操作指令
             return;
         }
-        if (s.length() > Byte.MAX_VALUE && !chr.isGM()) {
-            AutobanFactory.PACKET_EDIT.alert(c.getPlayer(), c.getPlayer().getName() + " tried to packet edit in General Chat.");
-            log.warn("Chr {} tried to send text with length of {}", c.getPlayer().getName(), s.length());
-            c.disconnect(true, false);
+        if (s.length() > Byte.MAX_VALUE && !chr.isGM()) {// 检查非GM玩家是否发送超长消息（超过127字节）
+            AutobanFactory.PACKET_EDIT.alert(c.getPlayer(), "玩家" + c.getPlayer().getName() + " 尝试在全局聊天中篡改封包。");  //触发封包篡改警告
+            log.warn("玩家 {} 尝试发送长度为 {} 的文本", c.getPlayer().getName(), s.length()); //记录警告日志
+            c.disconnect(true, false);  //强制断开连接
             return;
         }
-        char heading = s.charAt(0);
-        if (CommandsExecutor.isCommand(c, s)) {
-            CommandsExecutor.getInstance().handle(c, s);
-        } else if (heading != '/') {
-            int show = p.readByte();
-            if (chr.getMap().isMuted() && !chr.isGM()) {
-                chr.dropMessage(5, "The map you are in is currently muted. Please try again later.");
+        char heading = s.charAt(0);  //获取消息首字符
+        if (CommandsExecutor.isCommand(c, s)) {  //判断是否为命令（以'/'开头）
+            CommandsExecutor.getInstance().handle(c, s);  //交给命令处理器执行
+        } else if (heading != '/') {  //如果不是命令且不以'/'开头
+            int show = p.readByte();  //读取消息显示模式
+            if (chr.getMap().isMuted() && !chr.isGM()) {// 检查非GM玩家是否在禁言地图
+                chr.dropMessage(5, "当前地图已被禁言，请稍后再试");
                 return;
             }
 
-            if (!chr.isHidden()) {
-                chr.getMap().broadcastMessage(PacketCreator.getChatText(chr.getId(), s, chr.getWhiteChat(), show));
-                ChatLogger.log(c, "General", s);
-            } else {
-                chr.getMap().broadcastGMMessage(PacketCreator.getChatText(chr.getId(), s, chr.getWhiteChat(), show));
-                ChatLogger.log(c, "GM General", s);
+            if (!chr.isHidden()) {  //如果玩家不是隐身状态
+                chr.getMap().broadcastMessage(PacketCreator.getChatText(chr.getId(), s, chr.getWhiteChat(), show));// 向全地图广播普通聊天消息
+                ChatLogger.log(c, "对所有人", s);  //记录普通聊天日志
+            } else {  //GM隐身状态
+                chr.getMap().broadcastGMMessage(PacketCreator.getChatText(chr.getId(), s, chr.getWhiteChat(), show));// 只向GM广播聊天消息
+                ChatLogger.log(c, "GM 隐身消息", s);  //记录GM聊天日志
             }
 
-            chr.getAutoBanManager().spam(7);
+            chr.getAutoBanManager().spam(7);  //更新聊天时间戳（7表示聊天行为类型）
         }
     }
 }

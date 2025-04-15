@@ -13,7 +13,7 @@ public class ChatLogger {
      */
     public static void log(Client c, String chatType, String message) {
         if (GameConfig.getServerBoolean("use_enable_chat_log")) {
-            log.info("({}) {}: {}", chatType, c.getPlayer().getName(), message);
+            log.info("[{}]({}) {}: {}",c.getPlayer().getMap().getMapName(), chatType, c.getPlayer().getName(), message);
         }
     }
 }
