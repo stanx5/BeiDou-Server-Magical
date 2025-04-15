@@ -126,6 +126,7 @@ public class Client extends ChannelInboundHandlerAdapter {
     private volatile long lastPong;
     private int gmlevel;
     private Set<String> macs = new HashSet<>();
+    private Set<String> ips = new HashSet<>();
     private Map<String, ScriptEngine> engines = new HashMap<>();
     private byte characterSlots = 3;
     private byte loginattempt = 0;
@@ -815,6 +816,28 @@ public class Client extends ChannelInboundHandlerAdapter {
         }
     }
 
+    public void updateIps(String ipData) {
+        ips.addAll(Arrays.asList(ipData.split(", ")));
+        StringBuilder newIpData = new StringBuilder();
+        Iterator<String> iter = ips.iterator();
+        while (iter.hasNext()) {
+            String cur = iter.next();
+            newIpData.append(cur);
+            if (iter.hasNext()) {
+                newIpData.append(", ");
+            }
+        }
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement("UPDATE accounts SET ip = ? WHERE id = ?")) {
+            ps.setString(1, newIpData.toString());
+            ps.setInt(2, accId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void setAccID(int id) {
         this.accId = id;
     }
@@ -849,6 +872,7 @@ public class Client extends ChannelInboundHandlerAdapter {
             serverTransition = (newState == LOGIN_SERVER_TRANSITION);
             loggedIn = !serverTransition;
         }
+        updateIps(getRemoteAddress());
     }
 
     public int getLoginState() {  // 0 = LOGIN_NOTLOGGEDIN, 1= LOGIN_SERVER_TRANSITION, 2 = LOGIN_LOGGEDIN
@@ -1191,6 +1215,10 @@ public class Client extends ChannelInboundHandlerAdapter {
 
     public Set<String> getMacs() {
         return Collections.unmodifiableSet(macs);
+    }
+
+    public Set<String> getIps() {
+        return Collections.unmodifiableSet(ips);
     }
 
     public int getGMLevel() {
