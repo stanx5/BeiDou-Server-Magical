@@ -9,7 +9,8 @@
         <a-select
           v-model="condition.types"
           :placeholder="$t('informationSearch.placeholder.type')"
-          :scrollbar="true"
+          :scrollbar="1000"
+          :readonly="true"
           multiple
           :max-tag-count="3"
           allow-clear
@@ -64,13 +65,12 @@
         :data="informationList"
         column-resizable
         :pagination="false"
-        :bordered="{ cell: true }"
+        :bordered="{ wrapper: true, cell: true }"
       >
         <template #columns>
           <a-table-column
             :title="$t('informationSearch.column.type')"
             data-index="type"
-            :width="70"
             align="center"
           >
             <template #cell="{ record }">
@@ -82,13 +82,11 @@
           <a-table-column
             :title="$t('informationSearch.column.id')"
             data-index="id"
-            :width="100"
             align="center"
           />
           <a-table-column
             :title="$t('informationSearch.column.name')"
             data-index="name"
-            :width="100"
             align="center"
           >
             <template #cell="{ record }">
@@ -105,8 +103,9 @@
           <a-table-column
             :title="$t('informationSearch.column.desc')"
             data-index="desc"
-            :width="400"
             align="center"
+            :width="400"
+            :style="{ minWidth: '400px' }"
           />
         </template>
       </a-table>
@@ -202,5 +201,18 @@
   :deep(.a-space-son) {
     width: 400px;
     max-width: 100%;
+  }
+  :deep(.arco-table-th:nth-child(1)) {
+    min-width: 70px;
+  }
+  :deep(.arco-table-th:nth-child(2)) {
+    min-width: 100px;
+  }
+  :deep(.arco-table-th:nth-child(3)) {
+    min-width: 50px;
+    max-width: 150px;
+  }
+  :deep(.arco-table-th:nth-child(4)) {
+    min-width: 400px;
   }
 </style>
