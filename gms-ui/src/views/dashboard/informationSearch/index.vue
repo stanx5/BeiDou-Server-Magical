@@ -66,47 +66,47 @@
         :pagination="false"
         :bordered="{ wrapper: true, cell: true }"
       >
-      <template #columns>
-        <a-table-column
-          :title="$t('informationSearch.column.type')"
-          data-index="type"
-          align="center"
-        >
-          <template #cell="{ record }">
-            <a-tag color="arcoblue">
-              {{ getTag(record.type) }}
-            </a-tag>
-          </template>
-        </a-table-column>
-        <a-table-column
-          :title="$t('informationSearch.column.id')"
-          data-index="id"
-          align="center"
-        />
-        <a-table-column
-          :title="$t('informationSearch.column.name')"
-          data-index="name"
-          align="center"
-        >
-          <template #cell="{ record }">
-            <a-popover>
-              <a-button type="text" size="mini">
-                {{ record.name }}
-              </a-button>
-              <template #content>
-                <img :src="getImg(record.type, record.id)" alt="" />
-              </template>
-            </a-popover>
-          </template>
-        </a-table-column>
-        <a-table-column
-          :title="$t('informationSearch.column.desc')"
-          data-index="desc"
-          align="center"
-          :width="400"
-          :style="{ minWidth: '400px' }"
-        />
-      </template>
+        <template #columns>
+          <a-table-column
+            :title="$t('informationSearch.column.type')"
+            data-index="type"
+            align="center"
+          >
+            <template #cell="{ record }">
+              <a-tag color="arcoblue">
+                {{ getTag(record.type) }}
+              </a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column
+            :title="$t('informationSearch.column.id')"
+            data-index="id"
+            align="center"
+          />
+          <a-table-column
+            :title="$t('informationSearch.column.name')"
+            data-index="name"
+            align="center"
+          >
+            <template #cell="{ record }">
+              <a-popover>
+                <a-button type="text" size="mini">
+                  {{ record.name }}
+                </a-button>
+                <template #content>
+                  <img :src="getImg(record.type, record.id)" alt="" />
+                </template>
+              </a-popover>
+            </template>
+          </a-table-column>
+          <a-table-column
+            :title="$t('informationSearch.column.desc')"
+            data-index="desc"
+            align="center"
+            :width="400"
+            :style="{ minWidth: '400px' }"
+          />
+        </template>
       </a-table>
     </a-card>
   </div>
