@@ -69,4 +69,9 @@
       }
     }
   }
+  :global(.arco-modal) {
+    width: 90% !important;
+    max-width: 600px !important;
+    top: 0 !important;
+  }
 </style>

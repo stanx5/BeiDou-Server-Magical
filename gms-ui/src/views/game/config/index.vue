@@ -586,9 +586,4 @@
   :deep(.arco-table-th:nth-child(7)) {
     min-width: 250px;
   }
-  :global(.arco-modal) {
-    width: 90% !important;
-    max-width: 600px !important;
-    top: 0 !important;
-  }
 </style>
