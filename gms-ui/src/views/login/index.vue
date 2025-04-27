@@ -74,4 +74,10 @@
     max-width: 600px !important;
     top: 0 !important;
   }
+  :global(.arco-table-th) {
+    white-space: nowrap;
+  }
+  :global(.arco-table-td) {
+    white-space: nowrap;
+  }
 </style>
