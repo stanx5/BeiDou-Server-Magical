@@ -4,12 +4,12 @@
     <a-card class="general-card" :title="$t('menu.game.npcShop')">
       <a-row>
         <a-col>
+          <a-input-number v-model="shopFilter.shopId" placeholder="商店 ID" />
+          <a-input-number v-model="shopFilter.npcId" placeholder="NPC ID" />
+          <a-input v-model="shopFilter.npcName" placeholder="NPC 名称" />
+          <a-input-number v-model="shopFilter.itemId" placeholder="物品 ID" />
+          <a-input v-model="shopFilter.itemName" placeholder="物品" />
           <a-space>
-            <a-input-number v-model="shopFilter.shopId" placeholder="商店 ID" />
-            <a-input-number v-model="shopFilter.npcId" placeholder="NPC ID" />
-            <a-input v-model="shopFilter.npcName" placeholder="NPC" />
-            <a-input-number v-model="shopFilter.itemId" placeholder="物品 ID" />
-            <a-input v-model="shopFilter.itemName" placeholder="物品" />
             <a-button type="primary" status="success" @click="loadClick">
               搜索
             </a-button>
@@ -365,4 +365,19 @@
   };
 </script>
 
-<style lang="less" scoped></style>
+<style lang="less" scoped>
+  :deep(.arco-card-body, .arco-row) {
+    width: 100%;
+  }
+  .arco-input-wrapper {
+    margin-right: 0;
+    margin-bottom: 5px;
+    width: 100%;
+  }
+  @media (min-width: 768px) {
+    .arco-input-wrapper {
+      margin-right: 8px;
+      width: 150px;
+    }
+  }
+</style>
