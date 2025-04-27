@@ -63,7 +63,13 @@
               <img :src="getIconUrl('npc', record.npcId)" />
             </template>
           </a-table-column>
-          <a-table-column title="操作">
+          <a-table-column
+            title="操作"
+            data-index="edit"
+            :width="80"
+            fixed="right"
+            align="center"
+          >
             <template #cell="{ record }">
               <a-button
                 type="text"
@@ -103,7 +109,7 @@
               <img :src="getIconUrl('item', record.itemId)" />
             </template>
           </a-table-column>
-          <a-table-column title="物品ID" :width="140" align="center">
+          <a-table-column title="物品ID" :width="100" align="center">
             <template #cell="{ record }">
               <span v-if="record.id === undefined || editMode === record.id">
                 <a-input-number v-model="record.itemId" />
@@ -117,7 +123,7 @@
             :width="120"
             align="center"
           />
-          <a-table-column title="价格" :width="140" align="center">
+          <a-table-column title="价格" :width="100" align="center">
             <template #cell="{ record }">
               <span v-if="record.id === undefined || editMode === record.id">
                 <a-input-number v-model="record.price" />
@@ -125,7 +131,7 @@
               <span v-else>{{ record.price }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="音符" :width="140" align="center">
+          <a-table-column title="音符" :width="100" align="center">
             <template #cell="{ record }">
               <span v-if="record.id === undefined || editMode === record.id">
                 <a-input-number v-model="record.pitch" />
@@ -133,7 +139,7 @@
               <span v-else>{{ record.pitch }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="位置" :width="140" align="center">
+          <a-table-column title="位置" :width="100" align="center">
             <template #cell="{ record }">
               <span v-if="record.id === undefined || editMode === record.id">
                 <a-input-number v-model="record.position" />
@@ -141,45 +147,48 @@
               <span v-else>{{ record.position }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="描述" data-index="itemDesc" />
+          <a-table-column title="描述" :width="250" data-index="itemDesc" />
           <a-table-column title="操作">
             <template #cell="{ record }">
-              <a-button
-                v-if="record.id !== undefined && editMode !== record.id"
-                type="text"
-                size="mini"
-                status="normal"
-                @click="editMode = record.id"
-              >
-                编辑
-              </a-button>
-              <a-button
-                v-if="record.id !== undefined && editMode !== record.id"
-                type="text"
-                size="mini"
-                status="danger"
-                @click="deleteClick(record.id)"
-              >
-                删除
-              </a-button>
-              <a-button
-                v-if="record.id === undefined || editMode === record.id"
-                type="text"
-                size="mini"
-                status="success"
-                @click="saveClick(record)"
-              >
-                保存
-              </a-button>
-              <a-button
-                v-if="record.id !== undefined && editMode === record.id"
-                type="text"
-                size="mini"
-                status="normal"
-                @click="rollbackClick(record)"
-              >
-                返回
-              </a-button>
+              <a-space :size="0">
+                <a-button
+                  v-if="record.id !== undefined && editMode !== record.id"
+                  type="text"
+                  size="mini"
+                  status="normal"
+                  @click="editMode = record.id"
+                >
+                  编辑
+                </a-button>
+                <a-popconfirm
+                  v-if="record.id !== undefined && editMode !== record.id"
+                  content="确定要删除吗？"
+                  position="top"
+                  @ok="deleteClick(record.id)"
+                >
+                  <a-button type="text" size="mini" status="danger">
+                    删除
+                  </a-button>
+                </a-popconfirm>
+                <a-button
+                  v-if="record.id === undefined || editMode === record.id"
+                  type="text"
+                  size="mini"
+                  status="success"
+                  @click="saveClick(record)"
+                >
+                  保存
+                </a-button>
+                <a-button
+                  v-if="record.id !== undefined && editMode === record.id"
+                  type="text"
+                  size="mini"
+                  status="normal"
+                  @click="rollbackClick(record)"
+                >
+                  返回
+                </a-button>
+              </a-space>
             </template>
           </a-table-column>
         </template>
