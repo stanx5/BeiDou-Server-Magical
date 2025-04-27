@@ -374,10 +374,10 @@
     margin-bottom: 5px;
     width: 100%;
   }
-  @media (min-width: 768px) {
+  @media (min-width: 500px) {
     .arco-input-wrapper {
       margin-right: 8px;
-      width: 150px;
+      width: 140px;
     }
   }
 </style>
