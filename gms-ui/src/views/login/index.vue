@@ -68,16 +68,26 @@
         width: 25%;
       }
     }
-  }
-  :global(.arco-modal) {
-    width: 90% !important;
-    max-width: 600px !important;
-    top: 0 !important;
-  }
-  :global(.arco-table-th) {
-    white-space: nowrap;
-  }
-  :global(.arco-table-td) {
-    white-space: nowrap;
+    :global(.arco-modal) {
+      width: 90% !important;
+      max-width: 600px !important;
+      top: 0 !important;
+    }
+    :global(.arco-table-th) {
+      white-space: nowrap;
+    }
+    :global(.arco-table-td) {
+      white-space: nowrap;
+    }
+    :global(.arco-pagination-size-medium) {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+    :global(.arco-pagination-list) {
+      width: 100%;
+      margin-top: 8px;
+      margin-bottom: 15px;
+      white-space: normal;
+    }
   }
 </style>
