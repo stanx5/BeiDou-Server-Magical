@@ -390,9 +390,4 @@
     flex-wrap: wrap;
     gap: 16px;
   }
-  :global(.arco-modal) {
-    width: 90% !important;
-    max-width: 400px !important;
-    top: 0 !important;
-  }
 </style>
