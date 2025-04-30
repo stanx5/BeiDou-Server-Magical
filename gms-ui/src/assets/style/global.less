@@ -92,3 +92,29 @@ body {
     }
   }
 }
+/* 仅针对 IOS 的Safari和其它浏览器的CSS，安卓没有此烦恼。 */
+@supports (-webkit-touch-callout: none) {
+  /* 针对表格的列被压缩宽度的优化 */
+  table, .arco-table, .arco-table-container, .arco-scrollbar, .arco-scrollbar-container, .arco-table-element {
+    white-space: nowrap;  //禁止换行，防止Safari对表格列进行压缩
+  }
+  /* 保证表格里选择框最小宽度 */
+  .arco-table-checkbox {
+    min-width: 30px;
+  }
+  /* 保证表格里输入框最小宽度 */
+  td .arco-table-cell .arco-input {
+    min-width: 80px;
+  }
+  /* 允许表格里按钮列自动换行 */
+  td:has(.arco-table-cell .arco-table-td-content .arco-btn) {
+    white-space: normal;
+  }
+  /* 禁止输入框缩放 */
+  input, textarea {
+    resize: none; /* 禁用右下角缩放手柄 */
+    font-size: 16px !important;  /* iOS 对小于 16px 的输入框触发自动缩放 */
+    touch-action: manipulation;  /* 禁用双指手势 */
+  }
+}
+}
