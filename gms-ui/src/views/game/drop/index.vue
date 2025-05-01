@@ -1,7 +1,11 @@
 <template>
   <div class="container">
     <Breadcrumb />
-    <a-card class="general-card" :title="$t('menu.game.drop')">
+    <a-card
+      class="general-card"
+      :title="$t('menu.game.drop')"
+      style="overflow-x: auto"
+    >
       <a-row>
         <a-col>
           <a-input-number
@@ -43,7 +47,12 @@
             :width="80"
             align="center"
           />
-          <a-table-column title="怪物ID" :width="150" align="center">
+          <a-table-column
+            title="怪物ID"
+            data-index="mobid"
+            :width="150"
+            align="center"
+          >
             <template #cell="{ record }">
               <a-input-number
                 v-if="editId === record.id"
@@ -82,7 +91,7 @@
               <span v-else>{{ record.itemId }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="物品" :width="180" align="center">
+          <a-table-column title="物品" :width="230" align="center">
             <template #cell="{ record }">
               <a-button
                 v-if="record.itemId === 0"
@@ -154,7 +163,7 @@
             data-index="questName"
             align="center"
           />
-          <a-table-column :width="60" title="操作">
+          <a-table-column :width="80" title="操作">
             <template #cell="{ record }">
               <a-button
                 v-if="editId !== record.id"
@@ -184,7 +193,7 @@
               <a-popconfirm
                 v-if="editId === record.id"
                 content="确定要删除吗？"
-                position="top"
+                position="left"
                 @ok="() => deleteClick(record)"
               >
                 <a-button type="text" size="mini" status="danger">

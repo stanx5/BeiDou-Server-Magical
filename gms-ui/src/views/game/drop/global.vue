@@ -61,7 +61,7 @@
               <span v-else>{{ record.itemId }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="物品" :width="180" align="center">
+          <a-table-column title="物品" :width="230" align="center">
             <template #cell="{ record }">
               <a-button
                 v-if="record.itemId === 0"
@@ -135,7 +135,7 @@
           />
           <a-table-column
             title="备注"
-            :width="180"
+            :width="250"
             data-index="comments"
             align="center"
           >
@@ -144,7 +144,7 @@
               <span v-else>{{ record.comments }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="操作" :width="60">
+          <a-table-column title="操作" :width="80">
             <template #cell="{ record }">
               <a-button
                 v-if="editId !== record.id"
@@ -174,7 +174,7 @@
               <a-popconfirm
                 v-if="editId === record.id"
                 content="确定要删除吗？"
-                position="top"
+                position="left"
                 @ok="() => deleteClick(record)"
               >
                 <a-button type="text" size="mini" status="danger">
