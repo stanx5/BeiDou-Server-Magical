@@ -64,7 +64,7 @@
     :width="750"
     :footer="false"
   >
-    <a-form :model="condition" :auto-label-width="true">
+    <a-form :model="condition">
       <a-form-item :label="t('characterSelector.column.id')">
         <a-input-number v-model="condition.characterId" allow-clear />
       </a-form-item>
@@ -126,6 +126,13 @@
 </template>
 
 <style scoped lang="less">
+  .arco-form .arco-row {
+    display: flex;
+    width: 100%;
+    :deep(.arco-form-item-content-wrapper) {
+      max-width: 100%;
+    }
+  }
   .a-form-item-btn {
     margin-left: 0px;
     margin-bottom: 15px;
@@ -137,11 +144,14 @@
     align-items: center;
   }
   /* 最小宽度超过一定阈值 */
-  @media (min-width: @screen-sm) {
+  @media (min-width: @screen-xs) {
     .arco-modal-body .arco-form {
       display: flex;
       flex-direction: initial;
       width: 100%;
+      :deep(.arco-form-item-content-wrapper) {
+        max-width: 200px;
+      }
     }
     .a-form-item-btn {
       margin-left: 10px;
