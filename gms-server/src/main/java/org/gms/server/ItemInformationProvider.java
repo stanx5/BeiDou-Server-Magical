@@ -359,14 +359,20 @@ public class ItemInformationProvider {
 
     public short getSlotMax(Client c, int itemId) {
         Short slotMax = slotMaxCache.get(itemId);
+        // 原先使用getServerShort() 超过有效范围(-32767 ~ 32767) 会抛异常，改用getServerint() 并限制最大值32767，由于判断>0才生效，所以无需做负数处理
+        // 现在可以支持控制台的实时参数
+        short itemSlotMax = (short) Math.min(32767,GameConfig.getServerInt("item_slot_max"));
         if (slotMax != null) {
+            if (slotMax > 1 && itemSlotMax != slotMax) {
+                slotMax = itemSlotMax;
+                slotMaxCache.put(itemId, slotMax);  //更新缓存值
+            }
             return (short) (slotMax + getExtraSlotMaxFromPlayer(c, itemId));
         }
         short ret = 0;
         Data item = getItemData(itemId);
         if (item != null) {
             Data smEntry = item.getChildByPath("info/slotMax");
-            short itemSlotMax = GameConfig.getServerShort("item_slot_max");
             InventoryType inventoryType = ItemConstants.getInventoryType(itemId);
             if (smEntry == null) {
                 if (inventoryType.getType() == InventoryType.EQUIP.getType()) {
