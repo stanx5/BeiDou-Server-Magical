@@ -56,7 +56,7 @@ function action(mode, type, selection) {
                     if (cm.isEventLeader()) {
                         if (cm.haveItem(4001007, couponsNeeded)) {
                             cm.sendNext("你的团队收集了所有需要的优惠券，干得好！");
-                            cm.gainItem(4001007, couponsNeeded);
+                            cm.gainItem(4001007, -couponsNeeded);
                             eim.clearPQ();
 
                             cm.dispose();
