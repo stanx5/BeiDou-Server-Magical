@@ -237,6 +237,7 @@ public class Pet extends Item {
         if (petz != null) {
             owner.forceUpdateItem(petz);
         }
+        owner.getCheatcharacter().getItemvac().updatePetVacParam();
     }
 
     public void setLevel(byte level) {

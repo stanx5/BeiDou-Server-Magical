@@ -24,6 +24,7 @@ package org.gms.client;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.gms.cheatsystem.cheatCharacter;
 import org.gms.client.autoban.AutobanManager;
 import org.gms.client.creator.CharacterFactoryRecipe;
 import org.gms.client.inventory.*;
@@ -389,8 +390,11 @@ public class Character extends AbstractCharacterObject {
     private ScheduledFuture<?> chairRecoveryTask = null;
     private ScheduledFuture<?> pendantOfSpirit = null; //1122017
     private ScheduledFuture<?> cpqSchedule = null;
-
     private ScheduledFuture<?> FamilyBuffTimer = null;
+    /**
+     * 自动吸物定时器
+     */
+    private ScheduledFuture<?> cheatChaeracter_Timer_itemvac = null;
     private final Lock chrLock = new ReentrantLock(true);
     private final Lock evtLock = new ReentrantLock(true);
     private final Lock petLock = new ReentrantLock(true);
@@ -477,6 +481,11 @@ public class Character extends AbstractCharacterObject {
     private float familyExp = 1;
     @Getter
     private float familyDrop = 1;
+    /**
+     * 内置作弊类
+     */
+    @Getter
+    private final cheatCharacter cheatcharacter = new cheatCharacter(this);
     private static final CharacterService characterService = ServerManager.getApplicationContext().getBean(CharacterService.class);
     private static final NameChangeService nameChangeService = ServerManager.getApplicationContext().getBean(NameChangeService.class);
     private static final WorldTransferService worldTransferService = ServerManager.getApplicationContext().getBean(WorldTransferService.class);
@@ -708,6 +717,9 @@ public class Character extends AbstractCharacterObject {
             for (int i = 0; i < 3; i++) {
                 if (pets[i] == null) {
                     pets[i] = pet;
+                    if (i == 0) {
+                        startCheatItemVac();
+                    }
                     return;
                 }
             }
@@ -1951,142 +1963,145 @@ public class Character extends AbstractCharacterObject {
         pickupItem(ob, -1);
     }
 
-    public final void pickupItem(MapObject ob, int petIndex) {     // yes, one picks the MapObject, not the MapItem     //是的，选择MapObject，而不是MapItem
-        if (ob == null) {                                               // pet index refers to the one picking up the item      //宠物指数是指捡起物品的人
-            return;
+    public final void pickupItem(MapObject ob, int petIndex) {
+        pickupItem(ob,petIndex,true);
+    }
+    public final void pickupItem(MapObject ob, int petIndex,boolean showItemUnavailable) {     // 定义拾取物品方法，参数为地图对象和宠物索引
+        if (ob == null) {                                               // 检查对象是否为null
+            return;                                                     // 如果为null则直接返回
         }
 
-        if (ob instanceof MapItem mapitem) {
-            if (System.currentTimeMillis() - mapitem.getDropTime() < 400 || !mapitem.canBePickedBy(this)) {
-                enableActions();
-                return;
+        if (ob instanceof MapItem mapitem) {                            // 检查对象是否为MapItem类型
+            if (System.currentTimeMillis() - mapitem.getDropTime() < 400 || !mapitem.canBePickedBy(this)) { // 检查物品是否刚掉落或不可拾取
+                enableActions();                                        // 启用玩家动作
+                return;                                                 // 返回
             }
 
-            List<Character> mpcs = new LinkedList<>();
-            if (mapitem.getMeso() > 0 && !mapitem.isPickedUp()) {
-                mpcs = getPartyMembersOnSameMap();
+            List<Character> mpcs = new LinkedList<>();                  // 创建队伍成员列表
+            if (mapitem.getMeso() > 0 && !mapitem.isPickedUp()) {       // 如果是金币且未被拾取
+                mpcs = getPartyMembersOnSameMap();                      // 获取同地图队伍成员
             }
 
-            ScriptedItem itemScript = null;
-            mapitem.lockItem();
+            ScriptedItem itemScript = null;                             // 初始化脚本物品变量
+            mapitem.lockItem();                                         // 锁定物品防止并发拾取
             try {
-                if (mapitem.isPickedUp()) {
-                    sendPacket(PacketCreator.showItemUnavailable());
-                    enableActions();
-                    return;
+                if (mapitem.isPickedUp()) {                             // 再次检查物品是否已被拾取
+                    sendPacket(PacketCreator.showItemUnavailable());    // 发送物品不可用包
+                    enableActions();                                    // 启用玩家动作
+                    return;                                             // 返回
                 }
 
-                boolean isPet = petIndex > -1;
-                final Packet pickupPacket = PacketCreator.removeItemFromMap(mapitem.getObjectId(), (isPet) ? 5 : 2, this.getId(), isPet, petIndex);
+                boolean isPet = petIndex > -1;                          // 判断是否是宠物拾取
+                final Packet pickupPacket = PacketCreator.removeItemFromMap(mapitem.getObjectId(), (isPet) ? 5 : 2, this.getId(), isPet, petIndex); // 创建拾取数据包
 
-                Item mItem = mapitem.getItem();
-                boolean hasSpaceInventory = true;
-                ItemInformationProvider ii = ItemInformationProvider.getInstance();
-                if (ItemId.isNxCard(mapitem.getItemId()) || mapitem.getMeso() > 0 || ii.isConsumeOnPickup(mapitem.getItemId()) || (hasSpaceInventory = InventoryManipulator.checkSpace(client, mapitem.getItemId(), mItem.getQuantity(), mItem.getOwner()))) {
-                    int mapId = this.getMapId();
+                Item mItem = mapitem.getItem();                         // 获取物品对象
+                boolean hasSpaceInventory = true;                       // 初始化背包空间标志
+                ItemInformationProvider ii = ItemInformationProvider.getInstance(); // 获取物品信息提供者
+                if (ItemId.isNxCard(mapitem.getItemId()) || mapitem.getMeso() > 0 || ii.isConsumeOnPickup(mapitem.getItemId()) || (hasSpaceInventory = InventoryManipulator.checkSpace(client, mapitem.getItemId(), mItem.getQuantity(), mItem.getOwner()))) { // 检查物品类型和背包空间
+                    int mapId = this.getMapId();                        // 获取当前地图ID
 
-                    if ((MapId.isSelfLootableOnly(mapId))) {//happyville trees and guild PQ
-                        if (!mapitem.isPlayerDrop() || mapitem.getDropper().getObjectId() == client.getPlayer().getObjectId()) {
-                            if (mapitem.getMeso() > 0) {
-                                if (!mpcs.isEmpty()) {
-                                    int mesosamm = mapitem.getMeso() / mpcs.size();
-                                    for (Character partymem : mpcs) {
-                                        if (partymem.isLoggedInWorld()) {
-                                            partymem.gainMeso(mesosamm, true, true, false);
+                    if ((MapId.isSelfLootableOnly(mapId))) {//happyville trees and guild PQ // 检查是否是特殊地图
+                        if (!mapitem.isPlayerDrop() || mapitem.getDropper().getObjectId() == client.getPlayer().getObjectId()) { // 检查是否可以拾取
+                            if (mapitem.getMeso() > 0) {                // 处理金币拾取
+                                if (!mpcs.isEmpty()) {                  // 如果有队友
+                                    int mesosamm = mapitem.getMeso() / mpcs.size(); // 计算每人分得金币
+                                    for (Character partymem : mpcs) {   // 遍历队友
+                                        if (partymem.isLoggedInWorld()) { // 检查是否在线
+                                            partymem.gainMeso(mesosamm, true, true, false); // 分配金币
                                         }
                                     }
                                 } else {
-                                    this.gainMeso(mapitem.getMeso(), true, true, false);
+                                    this.gainMeso(mapitem.getMeso(), true, true, false); // 自己获得全部金币
                                 }
 
-                                this.getMap().pickItemDrop(pickupPacket, mapitem);
-                            } else if (ItemId.isNxCard(mapitem.getItemId())) {
+                                this.getMap().pickItemDrop(pickupPacket, mapitem); // 从地图移除物品
+                            } else if (ItemId.isNxCard(mapitem.getItemId())) { // 处理NX点券卡
                                 // Add NX to account, show effect and make item disappear   //添加点券到账户，是否展示捡到点券，并移除物品
-                                int nxGain = (mapitem.getItemId() == ItemId.NX_CARD_100 ? 100 : 250) * mItem.getQuantity(); //使点券支持按数量相乘
-                                this.getCashShop().gainCash(CashShop.NX_CREDIT, nxGain);
+                                int nxGain = (mapitem.getItemId() == ItemId.NX_CARD_100 ? 100 : 250) * mItem.getQuantity(); //计算点券数量
+                                this.getCashShop().gainCash(CashShop.NX_CREDIT, nxGain); // 增加点券
 
-                                if (GameConfig.getServerBoolean("use_announce_nx_coupon_loot")) {       //捡到点券是否展示
-                                    showHint(I18nUtil.getMessage("Character.pickupItem.message1", nxGain, this.getCashShop().getCash(CashShop.NX_CREDIT)), 300);
+                                if (GameConfig.getServerBoolean("use_announce_nx_coupon_loot")) { // 检查是否广播
+                                    showHint(I18nUtil.getMessage("Character.pickupItem.message1", nxGain, this.getCashShop().getCash(CashShop.NX_CREDIT)), 300); // 显示提示
                                     //showHint("捡到 #e#b" + nxGain + " NX#k#n (" + this.getCashShop().getCash(CashShop.NX_CREDIT) + " NX)", 300);
                                 }
 
-                                this.getMap().pickItemDrop(pickupPacket, mapitem);
-                            } else if (InventoryManipulator.addFromDrop(client, mItem, true)) {
-                                this.getMap().pickItemDrop(pickupPacket, mapitem);
+                                this.getMap().pickItemDrop(pickupPacket, mapitem); // 从地图移除物品
+                            } else if (InventoryManipulator.addFromDrop(client, mItem, true)) { // 尝试添加物品到背包
+                                this.getMap().pickItemDrop(pickupPacket, mapitem); // 从地图移除物品
                             } else {
-                                enableActions();
-                                return;
+                                enableActions();                        // 启用玩家动作
+                                return;                                 // 返回
                             }
                         } else {
-                            sendPacket(PacketCreator.showItemUnavailable());
-                            enableActions();
-                            return;
+                            sendPacket(PacketCreator.showItemUnavailable()); // 发送物品不可用包
+                            enableActions();                            // 启用玩家动作
+                            return;                                     // 返回
                         }
-                        enableActions();
-                        return;
+                        enableActions();                                // 启用玩家动作
+                        return;                                         // 返回
                     }
 
-                    if (!this.needQuestItem(mapitem.getQuest(), mapitem.getItemId())) {
-                        sendPacket(PacketCreator.showItemUnavailable());
-                        enableActions();
-                        return;
+                    if (!this.needQuestItem(mapitem.getQuest(), mapitem.getItemId())) { // 检查是否需要任务物品
+                        if (showItemUnavailable) sendPacket(PacketCreator.showItemUnavailable()); // 发送物品不可用包
+                        enableActions();                                // 启用玩家动作
+                        return;                                         // 返回
                     }
 
-                    if (mapitem.getMeso() > 0) {
-                        if (!mpcs.isEmpty()) {
-                            int mesosamm = mapitem.getMeso() / mpcs.size();
-                            for (Character partymem : mpcs) {
-                                if (partymem.isLoggedInWorld()) {
-                                    partymem.gainMeso(mesosamm, true, true, false);
+                    if (mapitem.getMeso() > 0) {                        // 处理金币拾取(普通地图)
+                        if (!mpcs.isEmpty()) {                          // 如果有队友
+                            int mesosamm = mapitem.getMeso() / mpcs.size(); // 计算每人分得金币
+                            for (Character partymem : mpcs) {           // 遍历队友
+                                if (partymem.isLoggedInWorld()) {       // 检查是否在线
+                                    partymem.gainMeso(mesosamm, true, true, false); // 分配金币
                                 }
                             }
                         } else {
-                            this.gainMeso(mapitem.getMeso(), true, true, false);
+                            this.gainMeso(mapitem.getMeso(), true, true, false); // 自己获得全部金币
                         }
-                    } else if (mItem.getItemId() / 10000 == 243) {
-                        ScriptedItem info = ii.getScriptedItemInfo(mItem.getItemId());
-                        if (info != null && info.runOnPickup()) {
-                            itemScript = info;
+                    } else if (mItem.getItemId() / 10000 == 243) {      // 处理脚本物品
+                        ScriptedItem info = ii.getScriptedItemInfo(mItem.getItemId()); // 获取脚本信息
+                        if (info != null && info.runOnPickup()) {       // 检查是否需要执行脚本
+                            itemScript = info;                          // 设置脚本物品
                         } else {
-                            if (!InventoryManipulator.addFromDrop(client, mItem, true)) {
-                                enableActions();
-                                return;
+                            if (!InventoryManipulator.addFromDrop(client, mItem, true)) { // 尝试添加物品到背包
+                                enableActions();                        // 启用玩家动作
+                                return;                                 // 返回
                             }
                         }
-                    } else if (ItemId.isNxCard(mapitem.getItemId())) {
+                    } else if (ItemId.isNxCard(mapitem.getItemId())) {  // 再次检查NX点券卡(普通地图)
                         // Add NX to account, show effect and make item disappear
-                        int nxGain = (mapitem.getItemId() == ItemId.NX_CARD_100 ? 100 : 250) * mItem.getQuantity(); //使点券支持按数量相乘
-                        this.getCashShop().gainCash(CashShop.NX_CREDIT, nxGain);
+                        int nxGain = (mapitem.getItemId() == ItemId.NX_CARD_100 ? 100 : 250) * mItem.getQuantity(); //计算点券数量
+                        this.getCashShop().gainCash(CashShop.NX_CREDIT, nxGain); // 增加点券
 
-                        if (GameConfig.getServerBoolean("use_announce_nx_coupon_loot")) {       //捡到点券是否展示
-                            showHint(I18nUtil.getMessage("Character.pickupItem.message1", nxGain, this.getCashShop().getCash(CashShop.NX_CREDIT)), 300);
+                        if (GameConfig.getServerBoolean("use_announce_nx_coupon_loot")) { // 检查是否广播
+                            showHint(I18nUtil.getMessage("Character.pickupItem.message1", nxGain, this.getCashShop().getCash(CashShop.NX_CREDIT)), 300); // 显示提示
                             //showHint("捡到 #e#b" + nxGain + " NX#k#n (" + this.getCashShop().getCash(CashShop.NX_CREDIT) + " NX)", 300);
                         }
-                    } else if (applyConsumeOnPickup(mItem.getItemId())) {//此段判断为处理捡取治疗道具和怪物卡加入图鉴
-                    } else if (InventoryManipulator.addFromDrop(client, mItem, true)) {
-                        if (mItem.getItemId() == ItemId.ARPQ_SPIRIT_JEWEL) {
-                            updateAriantScore();
+                    } else if (applyConsumeOnPickup(mItem.getItemId())) {//处理即时使用物品
+                    } else if (InventoryManipulator.addFromDrop(client, mItem, true)) { // 尝试添加普通物品到背包
+                        if (mItem.getItemId() == ItemId.ARPQ_SPIRIT_JEWEL) { // 检查是否是特殊物品
+                            updateAriantScore();                        // 更新分数
                         }
                     } else {
-                        enableActions();
-                        return;
+                        enableActions();                                // 启用玩家动作
+                        return;                                         // 返回
                     }
 
-                    this.getMap().pickItemDrop(pickupPacket, mapitem);
-                } else if (!hasSpaceInventory) {
-                    sendPacket(PacketCreator.getInventoryFull());
-                    sendPacket(PacketCreator.getShowInventoryFull());
+                    this.getMap().pickItemDrop(pickupPacket, mapitem);  // 从地图移除物品
+                } else if (!hasSpaceInventory && showItemUnavailable) {                        // 检查背包空间
+                    sendPacket(PacketCreator.getInventoryFull());       // 发送背包已满包
+                    sendPacket(PacketCreator.getShowInventoryFull());   // 显示背包已满提示
                 }
             } finally {
-                mapitem.unlockItem();
+                mapitem.unlockItem();                                   // 解锁物品
             }
 
-            if (itemScript != null) {
-                ItemScriptManager ism = ItemScriptManager.getInstance();
-                ism.runItemScript(client, itemScript);
+            if (itemScript != null) {                                   // 检查是否有脚本需要执行
+                ItemScriptManager ism = ItemScriptManager.getInstance(); // 获取脚本管理器
+                ism.runItemScript(client, itemScript);                  // 执行物品脚本
             }
         }
-        enableActions();
+        enableActions();                                                // 最后启用玩家动作
     }
 
     public int countItem(int itemid) {
@@ -2324,6 +2339,59 @@ public class Character extends AbstractCharacterObject {
         }
     }
 
+    /**
+     * 启动自动吸物定时器
+     */
+    public void startCheatItemVac() {
+        chrLock.lock();
+        try {
+            if (isLoggedInWorld() && pets[0] != null) {
+                if (cheatChaeracter_Timer_itemvac != null) stopCheatItemVac();    //如已有定时任务，则先停止
+                boolean enable = cheatcharacter.getItemvac().updatePetVacParam() && cheatcharacter.getItemvac().isEnable();  //更新吸物参数，并且检测是否启用宠吸
+                    int delay = cheatcharacter.getItemvac().getSleep();               //获取检测间隔
+                if (enable && delay > 0) {
+                    cheatChaeracter_Timer_itemvac = TimerManager.getInstance().register(() -> {
+                        if (cheatcharacter.getItemvac().updatePetVacParam() && cheatcharacter.getItemvac().isEnable() && isLoggedInWorld() && pets[0] != null) {  //角色在线且存在主宠，执行拾取操作
+//                            log.info("角色 {} 在线，进行宠吸，重复间隔：{}，检测范围：{}",name, delay,cheatcharacter.getItemvac().getRadius());
+                            cheatcharacter.getItemvac().pickupItem((byte) 0);   //传递主宠索引
+                            if (delay != cheatcharacter.getItemvac().getSleep()) {  //如果定时间隔有变化，则重新启动定时器。
+//                                log.info("角色 {} 检测到间隔变化 ， {}",name,delay);
+                                startCheatItemVac();
+                            }
+                        } else {
+                            stopCheatItemVac(); //离线或者没有主宠，停止定时器
+                        }
+                    }, delay, 1000);
+
+//                    log.info("角色 {} ，创建吸物实例 {}",name, cheatChaeracter_Timer_itemvac);
+                } else {
+//                    log.warn("角色 {} 没有配置宠吸间隔",name);
+                }
+            } else {
+//                log.warn("角色 {} 不在游戏世界，不创建宠吸实例",name);
+            }
+        } catch (Exception ex) {
+            log.error("角色 {} 自动宠吸定时器启动失败",name,ex);
+        } finally {
+            chrLock.unlock();
+        }
+    }
+
+    /**
+     * 停止自动吸物定时器
+     */
+    public void stopCheatItemVac() {
+        chrLock.lock();
+        try {
+            if (cheatChaeracter_Timer_itemvac != null) {
+                cheatChaeracter_Timer_itemvac.cancel(true);
+                cheatChaeracter_Timer_itemvac = null;
+//                log.info("角色 {} 停止了宠吸",name);
+            }
+        } finally {
+            chrLock.unlock();
+        }
+    }
     private void stopExtraTask() {
         chrLock.lock();
         try {
@@ -4488,7 +4556,7 @@ public class Character extends AbstractCharacterObject {
         int quickLv = GameConfig.getWorldInt(getWorld(), "quick_level");
         if (level >= quickLv) return 1;
 
-        return 1f + (quickLv - level) * GameConfig.getWorldFloat(getWorld(), "quick_level_exp_rate");
+        return 1f + (quickLv - level) * GameConfig.getWorldFloat(getWorld(), "quick_level_rate");
     }
 
     public void updateMobExpRate() {
@@ -6586,7 +6654,7 @@ public class Character extends AbstractCharacterObject {
             }
         }
         if (possesed > 0 && !MapId.isDojo(getMapId())) {
-            message(I18nUtil.getLogMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
+            message(I18nUtil.getMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
             InventoryManipulator.removeById(client, ItemConstants.getInventoryType(charmID[i]), charmID[i], 1, true, false);
             usedSafetyCharm = true;
         } else if (getJob() != Job.BEGINNER) { //Hmm...
@@ -7008,6 +7076,7 @@ public class Character extends AbstractCharacterObject {
                     }
                 }
             }
+            if (pets[0] != null) cheatcharacter.getItemvac().updatePetVacParam();    //移除宠物时，更新吸物参数
         } finally {
             petLock.unlock();
         }
@@ -8499,6 +8568,7 @@ public class Character extends AbstractCharacterObject {
                 forceUpdateItem(petz);
             }
         }
+        cheatcharacter.getItemvac().updatePetVacParam();   //如果宠吸开启，则更新拾取范围
     }
 
     public boolean runTirednessSchedule() {
