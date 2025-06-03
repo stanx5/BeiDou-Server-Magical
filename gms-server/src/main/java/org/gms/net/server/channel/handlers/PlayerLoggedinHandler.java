@@ -336,7 +336,7 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
             //展示服务信息
             noteService.show(player);
             //异常地图掉线信息提示
-            c.getSysRescue().showMapChangeMessage();
+            c.getSysRescue().showMapChangeMessage(player);
 
             if (player.getParty() != null) {
                 PartyCharacter pchar = player.getMPC();
@@ -437,6 +437,7 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
 
             player.receivePartyMemberHP();
 
+            player.startCheatItemVac(); //启动内置宠吸
             if (player.getPartnerId() > 0) {
                 int partnerId = player.getPartnerId();
                 final Character partner = wserv.getPlayerStorage().getCharacterById(partnerId);
