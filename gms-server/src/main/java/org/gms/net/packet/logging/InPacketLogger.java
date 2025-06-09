@@ -34,8 +34,8 @@ public class InPacketLogger extends ChannelInboundHandlerAdapter implements Pack
             final short opcode = LoggingUtil.readFirstShort(content);
             final String opcodeHex = Integer.toHexString(opcode).toUpperCase();
             final String opcodeName = getRecvOpcodeName(opcode);
-            final String prefix = opcodeName == null ? "<UnknownPacket> " : "";
-            log.info("{}ClientSend:{} [{}] ({}) <HEX> {} <TEXT> {}", prefix, opcodeName, opcodeHex, packetLength,
+            final String prefix = opcodeName == null ? "<未知封包> " : "";
+            log.info("{} 接收客服端:{} [{}] ({}) <HEX> {} <TEXT> {}", prefix, opcodeName, opcodeHex, packetLength,
                     HexTool.toHexString(content), HexTool.toStringFromCharset(content));
         } else {
             log.info("{}...", HexTool.toHexString(new byte[]{content[0], content[1]}));
