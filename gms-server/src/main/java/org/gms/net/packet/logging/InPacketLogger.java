@@ -18,7 +18,7 @@ public class InPacketLogger extends ChannelInboundHandlerAdapter implements Pack
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (GameConfig.getServerBoolean("use_debug_show_packet") && msg instanceof InPacket packet) {
+        if (msg instanceof InPacket packet) {
             log(packet);
         }
 
@@ -35,8 +35,13 @@ public class InPacketLogger extends ChannelInboundHandlerAdapter implements Pack
             final String opcodeHex = Integer.toHexString(opcode).toUpperCase();
             final String opcodeName = getRecvOpcodeName(opcode);
             final String prefix = opcodeName == null ? "<未知封包> " : "";
-            log.info("{} 接收客服端:{} [{}] ({}) <HEX> {} <TEXT> {}", prefix, opcodeName, opcodeHex, packetLength,
-                    HexTool.toHexString(content), HexTool.toStringFromCharset(content));
+            if (GameConfig.getServerBoolean("use_debug_show_packet")) { //如果打开封包显示，在显示完整封包，否则只显示未知封包。
+                log.info("{} 接收客服端:{} [{}] ({}) <HEX> {} <TEXT> {}", prefix, opcodeName, opcodeHex, packetLength,
+                        HexTool.toHexString(content), HexTool.toStringFromCharset(content));
+            } else if (opcodeName == null) {
+                log.info("{} 接收客服端:{} [{}] ({}) <HEX> {} <TEXT> {}", prefix, opcodeName, opcodeHex, packetLength,
+                        HexTool.toHexString(content), HexTool.toStringFromCharset(content));
+            }
         } else {
             log.info("{}...", HexTool.toHexString(new byte[]{content[0], content[1]}));
         }
