@@ -6527,6 +6527,8 @@ public class Character extends AbstractCharacterObject {
         try {
             return characterService.loadCharFromDB(cid, client, channelServer);
         } catch (Exception e) {
+//            client.sendPacket(PacketCreator.serverNotice(1,"[系统错误] 当前角色加载失败，无法登录。\r\n" + e.getMessage()));
+            client.sendPacket(PacketCreator.getLoginFailed(6));
             log.error(I18nUtil.getLogMessage("Character.loadCharFromDB.error1"), cid, e);
         }
         return null;
