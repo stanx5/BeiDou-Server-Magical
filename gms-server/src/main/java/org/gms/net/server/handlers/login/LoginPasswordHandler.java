@@ -37,10 +37,12 @@ import org.slf4j.LoggerFactory;
 
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
 public final class LoginPasswordHandler implements PacketHandler {
-    private static final Logger log = LoggerFactory.getLogger(Client.class);
+    private static final Logger log = LoggerFactory.getLogger(LoginPasswordHandler.class);
+    private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy年MM月dd日 HH时mm分ss秒");
 
     @Override
     public boolean validateState(Client c) {
@@ -52,6 +54,9 @@ public final class LoginPasswordHandler implements PacketHandler {
         String remoteHost = c.getRemoteAddress();
         if (remoteHost.contentEquals("null")) {
             c.sendPacket(PacketCreator.getLoginFailed(14));          // thanks Alchemist for noting remoteHost could be null
+            return;
+        } else if (c.getAccID() == -5) {
+            c.sendPacket(PacketCreator.serverNotice(1,"服务器已限制非法方式进入游戏\r\n请使用服务器指定的方式进入游戏。"));
             return;
         }
 
@@ -94,27 +99,32 @@ public final class LoginPasswordHandler implements PacketHandler {
             } catch (SQLException e) {
                 e.printStackTrace();
             } finally {
-                loginok = (loginok == -10) ? 0 : 23;
+                loginok = (loginok == -10) ? 0 : 23;    //发送协议确认
             }
         }
 
         if (c.hasBannedIP() || c.hasBannedMac()) {
             c.sendPacket(PacketCreator.getLoginFailed(3));
+            log.warn("客户端 {} 尝试登录账号 {} ，但是IP / MAC已被封禁",c.getRemoteAddress(),login);
             return;
         }
         Calendar tempban = c.getTempBanCalendarFromDB();
         if (tempban != null) {
             if (tempban.getTimeInMillis() > Calendar.getInstance().getTimeInMillis()) {
-                c.sendPacket(PacketCreator.getTempBan(tempban.getTimeInMillis(), c.getGReason()));
+                String tmpbanstr = sdf.format(tempban.getTime());
+                c.sendPacket(PacketCreator.serverNotice(1, "您的账号已被临时封停至 " + tmpbanstr));   //发送临时封禁时间和原因
+                c.sendPacket(PacketCreator.getLoginFailed(1));          //通知客户端恢复操作
+                log.warn("客户端 {} 尝试登录账号 {} ，但是被临时封停至 {}",c.getRemoteAddress(),login,tmpbanstr);
                 return;
             }
         }
         if (loginok == 3) {
             c.sendPacket(PacketCreator.getPermBan(c.getGReason()));//crashes but idc :D
+            log.warn("客户端 {} 尝试登录账号 {} ，但是账号已被封禁",c.getRemoteAddress(),login);
             return;
         } else if (loginok != 0) {
             c.sendPacket(PacketCreator.getLoginFailed(loginok));    //通知客户端密码错误
-            log.warn("客户端 {} 尝试登录账号 {} ，但是密码错误",c.getRemoteAddress(),login);
+            log.warn("客户端 {} 尝试登录账号 {} ，但是登录失败：{}",c.getRemoteAddress(),login,loginok);
             return;
         }
         if (c.finishLogin() == 0) {

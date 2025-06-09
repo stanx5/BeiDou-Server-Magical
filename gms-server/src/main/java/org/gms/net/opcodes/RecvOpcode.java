@@ -53,6 +53,7 @@ public enum RecvOpcode {
     CHAR_SELECT_WITH_PIC(0x1E), // 带图片的角色选择
     VIEW_ALL_PIC_REGISTER(0x1F), // 查看所有注册图片
     VIEW_ALL_WITH_PIC(0x20), // 查看所有带图片
+    LOGIN_INIT(0x23),// 登录验证
     CHANGE_MAP(0x26), // 更改地图
     CHANGE_CHANNEL(0x27), // 更改频道
     ENTER_CASHSHOP(0x28), // 进入现金商店

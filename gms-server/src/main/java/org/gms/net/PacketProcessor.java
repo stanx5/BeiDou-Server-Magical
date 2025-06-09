@@ -47,6 +47,8 @@ import org.gms.net.server.handlers.login.ViewAllCharHandler;
 import org.gms.net.server.handlers.login.ViewAllCharRegisterPicHandler;
 import org.gms.net.server.handlers.login.ViewAllCharSelectedHandler;
 import org.gms.net.server.handlers.login.ViewAllCharSelectedWithPicHandler;
+import org.gms.net.server.handlers.login.LoginInitHandler;
+import org.gms.net.client.handlers.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +83,7 @@ public final class PacketProcessor {
 
     public static PacketProcessor getChannelServerProcessor(int world, int channel) {
         if (channelDeps == null) {
-            throw new IllegalStateException("Unable to get channel server processor - dependencies are not registered");
+            throw new IllegalStateException("无法获取通道服务器处理器 - 未注册依赖关系");
         }
 
         return getProcessor(world, channel);
@@ -99,7 +101,7 @@ public final class PacketProcessor {
         try {
             handlers[code.getValue()] = handler;
         } catch (ArrayIndexOutOfBoundsException e) {
-            log.error("Error registering handler {}", code.name(), e);
+            log.error("注册处理程序 {} 时出错", code.name(), e);
         }
     }
 
@@ -129,6 +131,8 @@ public final class PacketProcessor {
     private void registerCommonHandlers() {
         registerHandler(RecvOpcode.PONG, new KeepAliveHandler());
         registerHandler(RecvOpcode.CUSTOM_PACKET, new CustomPacketHandler());
+        registerHandler(RecvOpcode.CLIENT_START_ERROR, new ClientStartErrorHandler());
+        registerHandler(RecvOpcode.CLIENT_ERROR, new ClientErrorHandler());
     }
 
     private void registerLoginHandlers() {
@@ -153,6 +157,7 @@ public final class PacketProcessor {
         registerHandler(RecvOpcode.SET_GENDER, new SetGenderHandler());
         registerHandler(RecvOpcode.VIEW_ALL_WITH_PIC, new ViewAllCharSelectedWithPicHandler());
         registerHandler(RecvOpcode.VIEW_ALL_PIC_REGISTER, new ViewAllCharRegisterPicHandler());
+        registerHandler(RecvOpcode.LOGIN_INIT, new LoginInitHandler());
     }
 
     private void registerChannelHandlers() {

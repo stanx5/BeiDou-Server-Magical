@@ -130,6 +130,8 @@ public class SessionCoordinator {
     public boolean canStartLoginSession(Client client) {
         if (!GameConfig.getServerBoolean("deterred_multi_client")) {
             return true;
+        } else if (client.getAccID() <= 0) {    //如果是客户端刚连接到登录端口则直接放行
+            return true;
         }
 
         String remoteHost = getSessionRemoteHost(client);
@@ -220,6 +222,7 @@ public class SessionCoordinator {
         if (!GameConfig.getServerBoolean("deterred_multi_client")) {
             hostHwidCache.addEntry(remoteHost, hwid);
             hostHwidCache.addEntry(client.getRemoteAddress(), hwid); // no HWID information on the loggedin newcomer session...
+            associateHwidAccountIfAbsent(hwid, accountId);
             return AntiMulticlientResult.SUCCESS;
         }
 
