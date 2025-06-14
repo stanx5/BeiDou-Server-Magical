@@ -1006,6 +1006,10 @@ public class Client extends ChannelInboundHandlerAdapter {
         }
     }
 
+    public void timeoutDisconnect() {
+        disconnectInternal(false, true);
+    }
+
     private synchronized boolean canDisconnect() {
         if (disconnecting) {
             return false;

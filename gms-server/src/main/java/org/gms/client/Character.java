@@ -2077,7 +2077,7 @@ public class Character extends AbstractCharacterObject {
                             showHint(I18nUtil.getMessage("Character.pickupItem.message1", nxGain, this.getCashShop().getCash(CashShop.NX_CREDIT)), 300); // 显示提示
                             //showHint("捡到 #e#b" + nxGain + " NX#k#n (" + this.getCashShop().getCash(CashShop.NX_CREDIT) + " NX)", 300);
                         }
-                    } else if (applyConsumeOnPickup(mItem.getItemId())) {//处理即时使用物品
+                    } else if (applyConsumeOnPickup(mItem.getItemId())) {//此段判断为处理捡取治疗道具和怪物卡加入图鉴
                     } else if (InventoryManipulator.addFromDrop(client, mItem, true)) { // 尝试添加普通物品到背包
                         if (mItem.getItemId() == ItemId.ARPQ_SPIRIT_JEWEL) { // 检查是否是特殊物品
                             updateAriantScore();                        // 更新分数
@@ -6527,8 +6527,6 @@ public class Character extends AbstractCharacterObject {
         try {
             return characterService.loadCharFromDB(cid, client, channelServer);
         } catch (Exception e) {
-//            client.sendPacket(PacketCreator.serverNotice(1,"[系统错误] 当前角色加载失败，无法登录。\r\n" + e.getMessage()));
-            client.sendPacket(PacketCreator.getLoginFailed(6));
             log.error(I18nUtil.getLogMessage("Character.loadCharFromDB.error1"), cid, e);
         }
         return null;
@@ -6656,7 +6654,7 @@ public class Character extends AbstractCharacterObject {
             }
         }
         if (possesed > 0 && !MapId.isDojo(getMapId())) {
-            message(I18nUtil.getMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
+            message(I18nUtil.getLogMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
             InventoryManipulator.removeById(client, ItemConstants.getInventoryType(charmID[i]), charmID[i], 1, true, false);
             usedSafetyCharm = true;
         } else if (getJob() != Job.BEGINNER) { //Hmm...
@@ -7078,7 +7076,6 @@ public class Character extends AbstractCharacterObject {
                     }
                 }
             }
-            if (pets[0] != null) cheatcharacter.getItemvac().updatePetVacParam();    //移除宠物时，更新吸物参数
         } finally {
             petLock.unlock();
         }
@@ -8570,7 +8567,6 @@ public class Character extends AbstractCharacterObject {
                 forceUpdateItem(petz);
             }
         }
-        cheatcharacter.getItemvac().updatePetVacParam();   //如果宠吸开启，则更新拾取范围
     }
 
     public boolean runTirednessSchedule() {

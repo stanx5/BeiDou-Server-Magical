@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package org.gms.scripting.portal;
 
 import org.gms.client.Client;
+import org.gms.config.GameConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.gms.scripting.AbstractScriptManager;
@@ -66,7 +67,12 @@ public class PortalScriptManager extends AbstractScriptManager {
 
     public boolean executePortalScript(Portal portal, Client c) {
         try {
-            PortalScript script = getPortalScript(portal.getScriptName());
+            String strPortalName = portal.getScriptName();
+            if (GameConfig.getServerBoolean("use_debug") && c.getPlayer().isGM() )
+            {
+                c.getPlayer().dropMessage("您已建立与传送门脚本: " + strPortalName + ".js 的关联。");
+            }
+            PortalScript script = getPortalScript(strPortalName);
             if (script != null) {
                 return script.enter(new PortalPlayerInteraction(c, portal));
             }
