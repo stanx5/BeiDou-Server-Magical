@@ -69,7 +69,7 @@ public class EventManager {
     private final Map<String, Integer> instanceLocks = new HashMap<>();  // 实例锁定映射表
     private final Queue<Integer> queuedGuilds = new LinkedList<>();  // 排队中的公会队列
     private final Map<Integer, Integer> queuedGuildLeaders = new HashMap<>();  // 排队公会及其会长映射
-    private final List<Boolean> openedLobbys;  // 已开启的大厅列表
+    private final List<Pair<Boolean, Long>> openedLobbys;  // 已开启的大厅列表
     private final List<EventInstanceManager> readyInstances = new LinkedList<>();  // 准备就绪的实例队列
     private Integer readyId = 0, onLoadInstances = 0;  // 准备ID和加载中的实例数
     private final Properties props = new Properties();  // 属性配置
@@ -1038,17 +1038,7 @@ public class EventManager {
             Object o = iv.invokeFunction("getEventMaps");
             if (o instanceof List<?> mapIds) {
                 for (Object mapId : mapIds) {
-                    int id;
-                    if (mapId instanceof Number) {
-                        id = ((Number) mapId).intValue();
-                    } else {
-                        id = Integer.parseInt(mapId.toString());
-                    }
-                    // 无效的mapId
-                    if (id <= 0) {
-                        continue;
-                    }
-                    if (!cserv.getMapFactory().getMap(id).getAllPlayers().isEmpty()) {
+                    if (mapId instanceof Integer id && !cserv.getMapFactory().getMap(id).getAllPlayers().isEmpty()) {
                         nobody = false;
                         break;
                     }
