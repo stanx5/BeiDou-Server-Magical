@@ -125,6 +125,43 @@ function getRewardList(count) {
 	}).join('\r\n');  // 用回车换行符连接所有项
 }
 
+function levelConfirmReceipt(count) {
+	if (count <= 0 || count > itemCount) {
+		im.sendOkLevel("","输入的份数不能 ≤0 且 不能超过最大份数 " + itemCount);
+	} else {
+			itemDeduct = count * config.haveitem.qty;	//计算硬币扣除数量
+			itemCount = count;							//更新硬币兑换份数
+		let msg = `即将兑换 #r${count} 份#k 以下奖励：\r\n\r\n#fUI/CashShop.img/CSDiscount/bonus#\r\n`;
+			msg += getRewardList(count) + `\r\n\r\n\r\n是否使用  ${itemIcoName} × #r${itemDeduct} ${config.haveitem.unit}#k 进行兑换？`;
+		im.sendYesNoLevel("main","giveRewardItems",msg);
+	}
+}
+
+function levelgiveRewardItems() {
+	im.sendOkLevel("",giveRewardItems(itemCount));
+}
+/**
+ * 生成奖励物品的显示列表
+ * @param {Number} count - 包含奖励数据的配置对象
+ * @returns {string} 格式化后的奖励列表字符串，每项用换行符分隔
+ */
+function getRewardList(count) {
+	return config.reward.map(obj => {
+		let { id, qty } = obj;// 通过解构赋值获取当前物品属性
+		let itemshow = ITEM_TEMPLATES[id] ?? '';// 根据物品ID获取基础显示模板（使用空值合并运算符??）
+		if (count > 1) qty = `${qty}#k × ${count}份 = #b${qty * count}#k`;
+		// 处理不同物品类型的显示逻辑
+		if (id >= 1_000_000) {  // 有效的物品ID≥7位数，使用数字分隔符提高可读性
+			itemshow = `#i${id}#   #e#b#t${id}##k#n × #r${qty}#k`;
+		} else if (itemshow) {// 已知物品追加数量显示
+			itemshow += ` × #r${qty}#k`;
+		} else {// 未知物品显示错误提示
+			itemshow = `#fUI/UIWindow.img/KeyConfig/BtHelp/mouseOver/0# #e#r未知物品ID：[#k ${id} #r]#k#n`;
+		}
+		return `#fUI/CashShop.img/CSDiscount/arrow# ${itemshow}`;// 为每项添加统一前缀并返回
+	}).join('\r\n');  // 用回车换行符连接所有项
+}
+
 /**
  * 发放奖励道具（支持多份兑换）
  * @param {number} [count=1] - 兑换份数（默认为1）
