@@ -88,6 +88,8 @@ public class ItemCommand extends Command {
             flag |= ItemConstants.UNTRADEABLE;
         }
 
-        InventoryManipulator.addById(c, itemId, quantity, player.getName(), -1, flag, -1);
+        if (!InventoryManipulator.addById(c, itemId, quantity, player.getName(), -1, flag, -1)) {
+            player.yellowMessage(I18nUtil.getMessage("ItemCommand.message3", params[0]));
+        }
     }
 }

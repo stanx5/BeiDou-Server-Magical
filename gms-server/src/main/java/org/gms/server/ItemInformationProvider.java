@@ -205,7 +205,7 @@ public class ItemInformationProvider {
         return itemPairs;
     }
 
-    private Data getStringData(int itemId) {
+    private Data getStringData_old(int itemId) {
         String cat = "null";
         Data theData;
         if (itemId >= 5010000) {
@@ -272,6 +272,60 @@ public class ItemInformationProvider {
         } else {
             return theData.getChildByPath(cat + "/" + itemId);
         }
+    }
+
+    /**
+     * 根据物品ID查询String.xml里的名称和描述
+     * 大部分物品不再限制查询范围，便于后续扩展
+     * @param itemId
+     * @return
+     */
+    private Data getStringData(int itemId) {
+        Data theData = null;
+        // 1. 处理非Eqp类别
+        if (itemId >= 5010000) {    //现金道具
+            theData = cashStringData;
+        } else if (itemId >= 2000000 && itemId < 3000000) {
+            theData = consumeStringData;
+        } else if (itemId >= 4000000 && itemId < 5000000) {
+            return etcStringData.getChildByPath("Etc/" + itemId);
+        } else if (itemId >= 3000000 && itemId < 4000000) {
+            theData = insStringData;
+        } else if (ItemConstants.isPet(itemId)) {
+            theData = petStringData;
+        }
+        if (theData != null) {
+            return theData.getChildByPath(String.valueOf(itemId));
+        }
+        // 2. 定义所有可能的Eqp子路径
+        final String[] eqpPaths = {
+                "Eqp/Accessory",
+                "Eqp/Cap",
+                "Eqp/Cape",
+                "Eqp/Coat",
+                "Eqp/Face",
+                "Eqp/Glove",
+                "Eqp/Hair",
+                "Eqp/Longcoat",
+                "Eqp/Pants",
+                "Eqp/PetEquip",
+                "Eqp/Ring",
+                "Eqp/Shield",
+                "Eqp/Shoes",
+                "Eqp/Taming",
+                "Eqp/Weapon"
+        };
+
+        // 3. 遍历所有Eqp路径查找数据
+        for (String path : eqpPaths) {
+            Data result = eqpStringData.getChildByPath(path + "/" + itemId);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        // 4. 所有路径都不存在
+        return null;
     }
 
     public boolean noCancelMouse(int itemId) {
@@ -1255,8 +1309,9 @@ public class ItemInformationProvider {
                     equipCache.put(equipId, nEquip);
                 }
             }
+            return nEquip.copy();
         }
-        return nEquip.copy();
+        return null;
     }
 
     private static short getRandStat(short defaultValue, int maxRange) {

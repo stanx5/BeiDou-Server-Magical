@@ -150,6 +150,9 @@ public class InventoryManipulator {
             }
         } else if (quantity == 1) {
             Item nEquip = ii.getEquipById(itemId);
+            if (nEquip == null) {
+                return false;
+            }
             nEquip.setFlag(flag);
             nEquip.setExpiration(expiration);
             if (owner != null) {
@@ -166,7 +169,7 @@ public class InventoryManipulator {
                 chr.setHasSandboxItem();
             }
         } else {
-            throw new RuntimeException("Trying to create equip with non-one quantity");
+            throw new RuntimeException("试图创建一件数量不为 1 的装备");
         }
         return true;
     }

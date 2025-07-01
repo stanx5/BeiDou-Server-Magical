@@ -15,15 +15,15 @@ import org.springframework.stereotype.Service;
 public class ItemService {
     public Equip getEquipmentInfoByItemId(Integer itemId) {
         ItemInformationProvider ii = ItemInformationProvider.getInstance();
-        String itemName = ii.getName(itemId);
-        if (itemName == null) {
+//        String itemName = ii.getName(itemId);
+        Equip equip = (Equip) ItemInformationProvider.getInstance().getEquipById(itemId);
+        if (equip == null) {
             throw new BizException(I18nUtil.getExceptionMessage("EQUIP_NOT_FOUND"));
         }
 
         if (!ItemConstants.getInventoryType(itemId).equals(InventoryType.EQUIP)) {
             throw new BizException(I18nUtil.getExceptionMessage("ONLY_SUPPORT_GIVE_EQUIP"));
         }
-
-        return (Equip) ItemInformationProvider.getInstance().getEquipById(itemId);
+        return equip;
     }
 }

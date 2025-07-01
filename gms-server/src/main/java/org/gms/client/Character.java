@@ -9619,11 +9619,11 @@ public class Character extends AbstractCharacterObject {
     public void gainEquip(int itemId, Short attStr, Short attDex, Short attInt, Short attLuk, Short attHp, Short attMp,
                           Short pAtk, Short mAtk, Short pDef, Short mDef, Short acc, Short avoid, Short hands, Short speed,
                           Short jump, Byte upgradeSlot, Long expireTime) {
-        if (!ItemConstants.getInventoryType(itemId).equals(InventoryType.EQUIP)) {
+        Equip baseEquip = (Equip) ItemInformationProvider.getInstance().getEquipById(itemId);
+        if (!ItemConstants.getInventoryType(itemId).equals(InventoryType.EQUIP) || baseEquip == null) {
             message(I18nUtil.getMessage("AbstractPlayerInteraction.gainEquip.message1"));
             return;
         }
-        Equip baseEquip = (Equip) ItemInformationProvider.getInstance().getEquipById(itemId);
         baseEquip.setQuantity((short) 1);
         if (!InventoryManipulator.checkSpace(getClient(), itemId, 1, baseEquip.getOwner())) {
             message(I18nUtil.getMessage("AbstractPlayerInteraction.gainEquip.message2", InventoryType.EQUIP.getName()));
