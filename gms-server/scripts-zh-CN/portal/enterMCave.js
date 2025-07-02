@@ -7,7 +7,8 @@ function enter(pi) {
 
             pi.playPortalSound();
             pi.warp(i, "out00");
-            pi.setQuestProgress(21202, 21203, 0);
+            // pi.setQuestProgress(21202, 21203, 0);    //21203 不知道什么任务，会造成客户端闪退
+            pi.setQuestProgress(21202, 0);
             return true;
         }
         pi.message("由于太多玩家正在回忆，镜子暂时空白。请稍后再试。");
@@ -21,7 +22,8 @@ function enter(pi) {
             spawnMob(-210, 454, 9001013, map);
 
             pi.playPortalSound();
-            pi.setQuestProgress(21303, 21203, 1);
+            // pi.setQuestProgress(21303, 21203, 1);    //21203 不知道什么任务，会造成客户端闪退
+            pi.setQuestProgress(21303, 1);
             pi.warp(108010701, "out00");
             return true;
         }
