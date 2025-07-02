@@ -36,7 +36,7 @@ function start(mode, type, selection) {
         }
 
         if (status == 0) {
-            qm.sendNext("Okay, you should not return to #bTru#k for further details on your next steps. ... Oh wait!! I remembered something. See the #rMysterious Statue#k over there? That statue has it's origins unknwown, and there's something scribbled onto it that resembles something big, it probably is the password for the cave? #rGet the password there#k, it may help you on your journey.");
+            qm.sendNext("#b#p1061019##k说虽然不知道暗号，但是看到过人偶师在#p1061006#上写的字，不知道是不是暗号。\r\n去#b#p1061006##k找到暗号后，告诉#b#p1002104##k。", 3);
         } else if (status == 1) {
             qm.forceStartQuest();
             qm.dispose();
