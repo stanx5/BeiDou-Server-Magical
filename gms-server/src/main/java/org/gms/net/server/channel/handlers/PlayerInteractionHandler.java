@@ -271,7 +271,7 @@ public final class PlayerInteractionHandler extends AbstractPacketHandler {
                             chr.setHiredMerchant(merchant);
                             c.getWorldServer().registerHiredMerchant(merchant);
                             chr.sendPacket(PacketCreator.getHiredMerchant(chr, merchant, true));
-                            System.out.println("new shop creation.");
+//                            System.out.println("new shop creation.");
                         }
                     }
                 }
