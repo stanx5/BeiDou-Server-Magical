@@ -39,7 +39,7 @@ public class FamilySummonResponseHandler extends AbstractPacketHandler {
             inviterEntry.refundEntitlement(FamilyEntitlement.SUMMON_FAMILY);
             inviterEntry.gainReputation(FamilyEntitlement.SUMMON_FAMILY.getRepCost(), false); //refund rep cost if declined
             inviter.sendPacket(PacketCreator.getFamilyInfo(inviterEntry));
-            inviter.dropMessage(5, c.getPlayer().getName() + " has denied the summon request.");
+            inviter.dropMessage(5, c.getPlayer().getName() + " 已拒绝召唤请求。");
         }
     }
 

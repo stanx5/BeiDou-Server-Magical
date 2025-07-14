@@ -62,7 +62,7 @@ public final class FamilyAddHandler extends AbstractPacketHandler {
         } else {
             InviteCoordinator.createInvite(InviteType.FAMILY, chr, addChr, addChr.getId());
             addChr.getClient().sendPacket(PacketCreator.sendFamilyInvite(chr.getId(), chr.getName()));
-            chr.dropMessage("The invite has been sent.");
+            chr.dropMessage("已向 " + addChr.getName() + " 发送邀请登录为同学。");
             c.sendPacket(PacketCreator.enableActions());
         }
     }
