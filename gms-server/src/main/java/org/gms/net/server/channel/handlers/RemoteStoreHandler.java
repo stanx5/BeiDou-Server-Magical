@@ -24,6 +24,8 @@ package org.gms.net.server.channel.handlers;
 
 import org.gms.client.Character;
 import org.gms.client.Client;
+import org.gms.client.inventory.InventoryType;
+import org.gms.constants.id.ItemId;
 import org.gms.net.AbstractPacketHandler;
 import org.gms.net.packet.InPacket;
 import org.gms.server.maps.HiredMerchant;
@@ -39,13 +41,20 @@ public class RemoteStoreHandler extends AbstractPacketHandler {
         HiredMerchant hm = getMerchant(c);
         if (hm != null && hm.isOwner(chr)) {
             if (hm.getChannel() == chr.getClient().getChannel()) {
+                boolean isPlayerOnMerchantMap = chr.getMapId() == hm.getMapId();
+                if (!isPlayerOnMerchantMap) {
+                    var remoteControl = chr.getInventory(InventoryType.CASH).findById(ItemId.REMOTE_CONTROLLER);
+                    if (remoteControl == null) {
+                        return;
+                    }
+                }
                 hm.visitShop(chr);
             } else {
                 c.sendPacket(PacketCreator.remoteChannelChange((byte) (hm.getChannel() - 1)));
             }
             return;
         } else {
-            chr.dropMessage(1, "You don't have a Merchant open.");
+            chr.dropMessage(1, "您没有打开商店。");
         }
         c.sendPacket(PacketCreator.enableActions());
     }
