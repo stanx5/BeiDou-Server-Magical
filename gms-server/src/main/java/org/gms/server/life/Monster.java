@@ -246,7 +246,7 @@ public class Monster extends AbstractLoadedLife {
 
     public synchronized void setStartingHp(int hp) {
         stats.setHp(hp);    // refactored mob stats after non-static HP pool suggestion thanks to twigs
-        this.hp.set(hp);
+        //this.hp.set(hp);  //这里注释掉，否则获取的经验值异常
     }
 
     public int getMaxHp() {
