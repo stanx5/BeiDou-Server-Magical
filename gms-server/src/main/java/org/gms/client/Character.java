@@ -6654,9 +6654,9 @@ public class Character extends AbstractCharacterObject {
             }
         }
         if (possesed > 0 && !MapId.isDojo(getMapId())) {
-            message(I18nUtil.getLogMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
             InventoryManipulator.removeById(client, ItemConstants.getInventoryType(charmID[i]), charmID[i], 1, true, false);
             usedSafetyCharm = true;
+            message(I18nUtil.getMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
         } else if (getJob() != Job.BEGINNER) { //Hmm...
             if (!FieldLimit.NO_EXP_DECREASE.check(getMap().getFieldLimit())) {  // thanks Conrad for noticing missing FieldLimit check
                 int XPdummy = ExpTable.getExpNeededForLevel(getLevel());
