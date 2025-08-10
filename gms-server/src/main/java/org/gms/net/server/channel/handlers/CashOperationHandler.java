@@ -83,7 +83,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     final int snCS = p.readInt();
                     ModifiedCashItemDO cItem = CashItemFactory.getItem(snCS);
                     if (!canBuy(chr, cItem, cs.getCash(useNX))) {
-                        log.error("Denied to sell cash item with SN {}", snCS); // preventing NPE here thanks to MedicOP
+                        log.error("无法出售带有序列号的现金物品 {}", snCS); // preventing NPE here thanks to MedicOP
                         c.enableCSActions();
                         return;
                     }
@@ -93,7 +93,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                             c.enableCSActions();
                             return;
                         } else if (ItemConstants.isRateCoupon(cItem.getItemId()) && !GameConfig.getServerBoolean("use_supply_rate_coupons")) {
-                            chr.dropMessage(1, "Rate coupons are currently unavailable to purchase.");
+                            chr.dropMessage(1, "倍率卡目前已暂停购买。");
                             c.enableCSActions();
                             return;
                         } else if (ItemConstants.isMapleLife(cItem.getItemId()) && chr.getLevel() < 30) {
@@ -140,7 +140,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     c.sendPacket(PacketCreator.showGiftSucceed(charactersDO.getName(), cItem));
                     c.sendPacket(PacketCreator.showCash(chr));
 
-                    String noteMessage = chr.getName() + " has sent you a gift! Go check out the Cash Shop.";
+                    String noteMessage = chr.getName() + " 给你送了一份礼物！快去商城看看吧。";
                     noteService.sendNormal(noteMessage, chr.getName(), charactersDO.getName());
 
                     Character receiver = c.getChannelServer().getPlayerStorage().getCharacterByName(charactersDO.getName());
@@ -177,7 +177,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                             c.sendPacket(PacketCreator.showBoughtInventorySlots(type, chr.getSlots(type)));
                             c.sendPacket(PacketCreator.showCash(chr));
                         } else {
-                            log.warn("Could not add {} slots of type {} for chr {}", qty, type, Character.makeMapleReadable(chr.getName()));
+                            log.warn("无法为玩家 {} 的账号 {} 添加类型为 {} 的背包格子 {} 个", chr.getName(),Character.makeMapleReadable(chr.getName()), type, qty);
                         }
                     } else {
                         ModifiedCashItemDO cItem = CashItemFactory.getItem(p.readInt());
@@ -200,7 +200,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                             c.sendPacket(PacketCreator.showBoughtInventorySlots(type, chr.getSlots(type)));
                             c.sendPacket(PacketCreator.showCash(chr));
                         } else {
-                            log.warn("Could not add {} slots of type {} for chr {}", qty, type, Character.makeMapleReadable(chr.getName()));
+                            log.warn("无法为玩家 {} 的账号 {} 添加类型为 {} 的背包格子 {} 个", chr.getName(),Character.makeMapleReadable(chr.getName()), type, qty);
                         }
                     }
                 } else if (action == 0x07) { // Increase Storage Slots
@@ -219,13 +219,13 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         }
                         cs.gainCash(cash, -4000);
                         if (chr.getStorage().gainSlots(qty)) {
-                            log.debug("Chr {} bought {} slots to their account storage.", c.getPlayer().getName(), qty);
+                            log.debug("玩家 {} 为账号 {} 购买了背包格子 {} 个",Character.makeMapleReadable(chr.getName()), chr.getName(), qty);
                             chr.setUsedStorage();
 
                             c.sendPacket(PacketCreator.showBoughtStorageSlots(chr.getStorage().getSlots()));
                             c.sendPacket(PacketCreator.showCash(chr));
                         } else {
-                            log.warn("Could not add {} slots to {}'s account.", qty, Character.makeMapleReadable(chr.getName()));
+                            log.warn("无法为玩家 {} 账号 {} 添加背包格子 {} 个",Character.makeMapleReadable(chr.getName()), chr.getName(), qty);
                         }
                     } else {
                         ModifiedCashItemDO cItem = CashItemFactory.getItem(p.readInt());
@@ -241,13 +241,13 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         }
                         cs.gainCash(cash, cItem, chr.getWorld());
                         if (chr.getStorage().gainSlots(qty)) {    // thanks ABaldParrot & Thora for detecting storage issues here
-                            log.debug("Chr {} bought {} slots to their account storage", c.getPlayer().getName(), qty);
+                            log.debug("玩家 {} 为账号 {} 购买了背包格子 {} 个",Character.makeMapleReadable(chr.getName()), chr.getName(), qty);
                             chr.setUsedStorage();
 
                             c.sendPacket(PacketCreator.showBoughtStorageSlots(chr.getStorage().getSlots()));
                             c.sendPacket(PacketCreator.showCash(chr));
                         } else {
-                            log.warn("Could not add {} slots to {}'s account", qty, Character.makeMapleReadable(chr.getName()));
+                            log.warn("无法为玩家 {} 账号 {} 添加背包格子 {} 个",Character.makeMapleReadable(chr.getName()), chr.getName(), qty);
                         }
                     }
                 } else if (action == 0x08) { // Increase Character Slots
@@ -260,7 +260,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         return;
                     }
                     if (!c.canGainCharacterSlot()) {
-                        chr.dropMessage(1, "You have already used up all 12 extra character slots.");
+                        chr.dropMessage(1, "你已经用完了12个额外角色位置，无法继续增加。");
                         c.enableCSActions();
                         return;
                     }
@@ -269,7 +269,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         c.sendPacket(PacketCreator.showBoughtCharacterSlot(c.getCharacterSlots()));
                         c.sendPacket(PacketCreator.showCash(chr));
                     } else {
-                        log.warn("Could not add a chr slot to {}'s account", Character.makeMapleReadable(chr.getName()));
+                        log.warn("无法为账号 {} 添加背包格子", Character.makeMapleReadable(chr.getName()));
                         c.enableCSActions();
                         return;
                     }
@@ -306,11 +306,11 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         c.enableCSActions();
                         return;
                     } else if (c.getPlayer().getPetIndex(item.getPetId()) > -1) {
-                        chr.getClient().sendPacket(PacketCreator.serverNotice(1, "You cannot put the pet you currently equip into the Cash Shop inventory."));
+                        chr.getClient().sendPacket(PacketCreator.serverNotice(1, "无法将当前装备的宠物放入商城保管箱里。"));
                         c.enableCSActions();
                         return;
                     } else if (ItemId.isWeddingRing(item.getItemId()) || ItemId.isWeddingToken(item.getItemId())) {
-                        chr.getClient().sendPacket(PacketCreator.serverNotice(1, "You cannot put relationship items into the Cash Shop inventory."));
+                        chr.getClient().sendPacket(PacketCreator.serverNotice(1, "无法将缔结了关系/羁绊的道具放入商城保管箱里"));
                         c.enableCSActions();
                         return;
                     }
@@ -327,14 +327,14 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                         ModifiedCashItemDO itemRing = CashItemFactory.getItem(SN);
                         Character partner = c.getChannelServer().getPlayerStorage().getCharacterByName(recipientName);
                         if (partner == null) {
-                            chr.sendPacket(PacketCreator.serverNotice(1, "The partner you specified cannot be found.\r\nPlease make sure your partner is online and in the same channel."));
+                            chr.sendPacket(PacketCreator.serverNotice(1, "无法找到指定的玩家，请确保你与该玩家处于统一频道。"));
                         } else {
 
-                          /*  if (partner.getGender() == chr.getGender()) {
-                                chr.dropMessage(5, "You and your partner are the same gender, please buy a friendship ring.");
+                            if (partner.getGender() == chr.getGender()) {
+                                chr.dropMessage(5, "你不能与该玩家结婚，推荐购买友谊戒指。");
                                 c.enableCSActions();
                                 return;
-                            }*/ //Gotta let them faggots marry too, hence why this is commented out <3 
+                            }
 
                             if (itemRing.toItem() instanceof Equip eqp) {
                                 Pair<Integer, Integer> rings = Ring.createRing(itemRing.getItemId(), chr, partner);
@@ -472,7 +472,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     }
                     c.enableCSActions();
                 } else {
-                    log.warn("Unhandled action: {}, packet: {}", action, p);
+                    log.warn("未处理的操作：{}，数据包：{}", action, p);
                 }
             } finally {
                 c.releaseClient();
