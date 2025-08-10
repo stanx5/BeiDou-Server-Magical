@@ -157,7 +157,7 @@ public class TimerManager implements TimerManagerMBean {
             try {
                 r.run();
             } catch (Throwable t) {
-                log.error("Error in scheduled task", t);
+                log.error("[计划任务] 运行出错：", t);
             }
         }
     }
