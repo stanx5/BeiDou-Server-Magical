@@ -203,6 +203,8 @@ public class CommandsExecutor {
         addCommand("enableauth", EnableAuthCommand.class);
         addCommand("toggleexp", ToggleExpCommand.class);
         addCommand("mylawn", MapOwnerClaimCommand.class);
+        addCommand("dropmeso", DropMesoCommand.class);
+        addCommand("丢金币", DropMesoCommand.class);
 
         commandsNameDesc.add(levelCommandsCursor);
     }
