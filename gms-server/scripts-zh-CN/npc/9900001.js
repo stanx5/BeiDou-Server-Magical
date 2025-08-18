@@ -58,7 +58,7 @@ function action(mode, type, selection) {
         text += " \r\n\r\n";
         text += "#L3#回到自由#l \t #L61#超级传送#l \t #L69#24小时便利店#l\r\n"
         text += "#L0#新人福利#l \t #L1#每日签到#l \t #L2#在线奖励#l\r\n";
-        text += "#L4#爆率一览#l \t #L65#一键删除道具#l \t ";
+        text += "#L4#爆率一览#l \t #L65#一键删除道具#l \t #L5#二次元皮肤福利#l";
         if (cm.getPlayer().isGM()) {
             text += "\r\n\r\n";
             text += "\t\t\t\t#r=====以下内容仅GM可见=====\r\n";
@@ -81,7 +81,7 @@ function doSelect(selection) {
             openNpc("新人福利");
             break;
         case 1:
-            openNpc("每日签到");
+            openNpc("领取二次元皮肤.js");
             break;
         case 2:
             openNpc("在线奖励_nextlevel");
@@ -92,6 +92,9 @@ function doSelect(selection) {
             break;
         case 4:
             openNpc("当前地图掉落");
+            break;
+        case 5:
+            openNpc("领取动漫皮肤");
             break;
         // GM功能
         case 61:
