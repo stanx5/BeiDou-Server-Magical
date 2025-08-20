@@ -323,7 +323,7 @@ declare interface Character {
     gainAp(deltaAp: number, silent: boolean): void
     gainAriantPoints(points: number): void
     gainCP(gain: number): void
-    gainEquip(itemId: number, attStr: number, attDex: number, attInt: number, attLuk: number, attHp: number, attMp: number, pAtk: number, mAtk: number, pDef: number, mDef: number, acc: number, avoid: number, hands: number, speed: number, jump: number, upgradeSlot: number, expireTime: number): void
+    gainEquip(itemId: number, attStr: number, attDex: number, attInt: number, attLuk: number, attHp: number, attMp: number, pAtk: number, mAtk: number, pDef: number, mDef: number, acc: number, avoid: number, hands: number, speed: number, jump: number, upgradeSlot: number, expireTime: number): boolean
     gainExp(gain: number): void
     gainExp(gain: number, show: boolean, inChat: boolean): void
     gainExp(gain: number, show: boolean, inChat: boolean, white: boolean): void

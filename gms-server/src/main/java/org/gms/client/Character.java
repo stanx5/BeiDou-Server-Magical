@@ -9616,17 +9616,18 @@ public class Character extends AbstractCharacterObject {
      * @param upgradeSlot 可升级次数
      * @param expireTime  失效时间，-1为不失效 来自 @leevccc 的建议，传值则为分钟
      */
-    public void gainEquip(int itemId, Short attStr, Short attDex, Short attInt, Short attLuk, Short attHp, Short attMp,
+    public boolean gainEquip(int itemId, Short attStr, Short attDex, Short attInt, Short attLuk, Short attHp, Short attMp,
                           Short pAtk, Short mAtk, Short pDef, Short mDef, Short acc, Short avoid, Short hands, Short speed,
                           Short jump, Byte upgradeSlot, Long expireTime) {
         Equip baseEquip = (Equip) ItemInformationProvider.getInstance().getEquipById(itemId);
         if (!ItemConstants.getInventoryType(itemId).equals(InventoryType.EQUIP) || baseEquip == null) {
             message(I18nUtil.getMessage("AbstractPlayerInteraction.gainEquip.message1"));
-            return;
+            return false;
         }
         baseEquip.setQuantity((short) 1);
         if (!InventoryManipulator.checkSpace(getClient(), itemId, 1, baseEquip.getOwner())) {
             message(I18nUtil.getMessage("AbstractPlayerInteraction.gainEquip.message2", InventoryType.EQUIP.getName()));
+            return false;
         }
         RequireUtil.requireNotEmptyAndThen(baseEquip, attStr, Equip::setStr);
         RequireUtil.requireNotEmptyAndThen(baseEquip, attDex, Equip::setDex);
@@ -9651,7 +9652,7 @@ public class Character extends AbstractCharacterObject {
                 eq.setExpiration(-1);
             }
         });
-        InventoryManipulator.addFromDrop(getClient(), baseEquip, false);
+        return InventoryManipulator.addFromDrop(getClient(), baseEquip, false);
     }
 
     public void setFamilyBuff(boolean type, float exp, float drop) {

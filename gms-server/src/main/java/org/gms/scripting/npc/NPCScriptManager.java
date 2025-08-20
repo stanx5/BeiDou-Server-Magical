@@ -108,7 +108,7 @@ public class NPCScriptManager extends AbstractScriptManager {
             }
 
         } catch (final Exception e) {
-            log.error("Error starting NPC script: {}", npc, e);
+            log.error("启动NPC脚本时出错，脚本名称: {}，调用NPC：{}",filename, npc, e);
             dispose(c);
         }
     }
@@ -162,9 +162,8 @@ public class NPCScriptManager extends AbstractScriptManager {
             }
             return true;
         } catch (Exception e) {
-            log.error("Error starting NPC script: {}", npc, e);
+            log.error("启动NPC脚本时出错，脚本名称: {}，调用NPC：{}，引擎名称：{}",fileName, npc, engineName, e);
             dispose(c, true);
-
             return false;
         }
     }
@@ -178,7 +177,7 @@ public class NPCScriptManager extends AbstractScriptManager {
                 iv.invokeFunction("action", mode, type, selection);
             } catch (Exception t) {
                 if (getCM(c) != null) {
-                    log.error("Error performing NPC script action for npc: {}", getCM(c).getNpc(), t);
+                    log.error("执行NPC脚本 action 时出错：{}", getCM(c).getNpc(), t);
                 }
                 dispose(c, true);
             } finally {
@@ -229,13 +228,13 @@ public class NPCScriptManager extends AbstractScriptManager {
                         }
                     }
                     default -> {
-                        log.error("Unsupported level type: {}", nextLevelContext.getLevelType());
+                        log.error("不支持的 level 类型: {}", nextLevelContext.getLevelType());
                         dispose(c, true);
                     }
                 }
             } catch (Exception t) {
                 if (getCM(c) != null) {
-                    log.error("Error performing NPC script action for npc: {}", getCM(c).getNpc(), t);
+                    log.error("NPC {} 执行脚本 nextLevel 时出错：", getCM(c).getNpc(), t);
                 }
                 dispose(c, true);
             } finally {
