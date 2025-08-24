@@ -23,7 +23,7 @@ public class InPacketLogger extends ChannelInboundHandlerAdapter implements Pack
     private static final Set<String> BLOCKED_OPCODES = new HashSet<>();
     static {
         // 添加要屏蔽的包头，例如"6C"
-//        BLOCKED_OPCODES.add("6C");
+        BLOCKED_OPCODES.add("6C");
         // 可以添加更多需要屏蔽的包头
         // BLOCKED_OPCODES.add("1A");
     }
@@ -67,7 +67,7 @@ public class InPacketLogger extends ChannelInboundHandlerAdapter implements Pack
             if (shouldLogFull) {
                 log.info("接收客户端 {} {} [0x{}] ({}字节) HEX: {} TEXT: {}",
                         clientIp,
-                        isUnknownPacket ? "未知" : opcodeName,
+                        isUnknownPacket ? "<未知封包>" : opcodeName,
                         opcodeHex,
                         packetLength,
                         HexTool.toHexString(content),

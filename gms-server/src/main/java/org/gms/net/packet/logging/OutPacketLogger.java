@@ -24,7 +24,7 @@ public class OutPacketLogger extends ChannelOutboundHandlerAdapter implements Pa
     private static final Set<String> BLOCKED_OPCODES = new HashSet<>();
     static {
         // 默认屏蔽的包头
-//        BLOCKED_OPCODES.add("6C");
+        BLOCKED_OPCODES.add("6C");
         // BLOCKED_OPCODES.add("1A"); // 添加更多需要屏蔽的包头
     }
 
