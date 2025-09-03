@@ -26,11 +26,15 @@ package org.gms.client.command.commands.gm3;
 import org.gms.client.Character;
 import org.gms.client.Client;
 import org.gms.client.command.Command;
+import org.gms.scripting.portal.PortalScriptManager;
 import org.gms.server.life.LifeFactory;
 import org.gms.server.life.Monster;
 import org.gms.util.I18nUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpawnCommand extends Command {
+    private static final Logger log = LoggerFactory.getLogger(PortalScriptManager.class);
     {
         setDescription(I18nUtil.getMessage("SpawnCommand.message1"));
     }
@@ -48,12 +52,19 @@ public class SpawnCommand extends Command {
             player.dropMessage(6,"怪物ID：[" + params[0] + "] 不存在，无法召唤。");
             return;
         }
-        if (params.length == 2) {
-            for (int i = 0; i < Integer.parseInt(params[1]); i++) {
-                player.getMap().spawnMonsterOnGroundBelow(new Monster(monster.getId(), monster.getStats()), player.getPosition());
-            }
-        } else {
-            player.getMap().spawnMonsterOnGroundBelow(monster, player.getPosition());
+        int quantity = params.length == 2 ? Integer.parseInt(params[1]) : 1;
+        log.info("玩家 {} 在地图 [{}({})] 坐标({} , {}) 召唤出怪物： {}({}) 数量：{}",
+                player.getName(),
+                player.getMap().getMapName(),
+                player.getMapId(),
+                player.getPosition().getX(),
+                player.getPosition().getY(),
+                monster.getName(),
+                monster.getId(),
+                quantity
+                );
+        for (int i = 0; i < quantity; i++) {
+            player.getMap().spawnMonsterOnGroundBelow(new Monster(monster.getId(), monster.getStats()), player.getPosition());
         }
     }
 }
