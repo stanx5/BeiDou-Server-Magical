@@ -82,7 +82,7 @@ public final class NPCTalkHandler extends AbstractPacketHandler {
                     boolean hasNpcScript = NPCScriptManager.getInstance().start(c, npc.getId(), oid, null);
                     if (!hasNpcScript) {
                         if (!npc.hasShop()) {
-                            log.warn("NPC {} ({}) is not coded", npc.getName(), npc.getId());
+                            log.warn("NPC {} ({}) 没有可用脚本。", npc.getName(), npc.getId());
                             return;
                         } else if (c.getPlayer().getShop() != null) {
                             c.sendPacket(PacketCreator.enableActions());
