@@ -261,7 +261,7 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
                 }
 
                 chr.addMPHP(-hploss, -mploss);
-            } else if (mesoguard != null) {
+            } else if (mesoguard != null) { //金钱护盾
                 damage = Math.round(damage / 2);
                 int mesoloss = (int) (damage * (mesoguard.doubleValue() / 100.0));
                 if (chr.getMeso() < mesoloss) {
@@ -270,6 +270,7 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
                 } else {
                     chr.gainMeso(-mesoloss, false);
                 }
+                damage -= mesoloss;  //修复金钱护盾不减伤的问题
                 chr.addMPHP(-damage, -mpattack);
             } else {
                 if (chr.isRidingBattleship()) {
