@@ -4,8 +4,9 @@
  * 		支持配置的奖励有 金币、经验、点券、抵用券、信用点 和 有效物品
  * 		支持输入整数按份领取奖励列表
  * 作者：Magical-H (https://www.github.com/Magical-H)
- * 版本：1.0
+ * 版本：1.1
  * 日期：2025-06-27
+ * 修改：添加了一键领取功能
  */
 
 /**
@@ -100,6 +101,12 @@ var g_Select;
  * @type {number}
  */
 var g_itemCount = 1;
+/**
+ * 全局变量
+ * - 一键领取选项的索引（使用一个大数字避免与奖励索引冲突）
+ * @type {number}
+ */
+var CLAIM_ALL_INDEX = 999;
 
 // 定义物品显示模板的映射表（ES6对象字面量优化）
 const ITEM_TEMPLATES = {
@@ -133,19 +140,29 @@ function leveldispose() {
 }
 
 function levelmain() {
+	list = getOnlineRewardListText();
 	text = "亲爱的玩家：#e#b#h ##k#n，感谢您持续在线支持！\r\n";
 	text += `#e今日已累积在线：#n${formatMinutes(g_OnlineMinutes)}\r\n`;
 	text += "我们为您准备了丰厚的在线时长奖励，点击领取下方的奖励：\r\n";
-	text += getOnlineRewardListText() + "\r\n\r\n";
-	text += "\r\n【领取说明】\r\n · 每份奖励需手动领取\r\n · #b每日0点#e#r重置#b#n累计时长#k\r\n · 背包空间不足将不会发放奖励\r\n · 坚持在线时间越长，获得奖励越丰厚！"
-	cm.sendNextSelectLevel("claimrewards",text);
+	text += list + "\r\n\r\n";
+	text += "\r\n【领取说明】\r\n · 奖励可以单份领取也可以一键领取\r\n · #b每日0点#e#r重置#b#n累计时长#k\r\n · 背包空间不足将不会发放奖励\r\n · 坚持在线时间越长，获得奖励越丰厚！"
+	if (list.includes("#L") && list.includes("#l")) {
+		cm.sendNextSelectLevel("claimrewards", text);
+	} else {
+		cm.sendOkLevel("",text);
+	}
 }
 
 function levelclaimrewards(Select) {
+	// 处理一键领取选项
+	if (Select === CLAIM_ALL_INDEX) {
+		levelclaimallrewards();
+		return;
+	}
 	const reward = config.reward[Select];
 	g_ClaimStatus |= (1 << Select);
 	let text = "\r\n";
-		text += getRewardList(Select);
+	text += getRewardList(Select);
 	if (reward.isReceive) {	//已领取
 		text += "\r\n\r\n#r#e以上奖励你已领取过了，无法再次领取。#k#n"
 	} else if (!reward.isClaimed) {//未满足在线时长
@@ -157,9 +174,6 @@ function levelclaimrewards(Select) {
 		return;
 	}
 	cm.sendOkLevel("",text);
-}
-function levelgiveRewardItems() {
-	cm.sendOkLevel("",giveRewardItems(g_Select,g_itemCount));
 }
 /**
  * 生成奖励物品的显示列表
@@ -185,15 +199,112 @@ function getRewardList(Select,count = 1) {
 		return `#fUI/CashShop.img/CSDiscount/arrow# ${itemshow}`;// 为每项添加统一前缀并返回
 	}).join('\r\n');  // 用回车换行符连接所有项
 }
+// 新增：一键领取所有可领取奖励
+function levelclaimallrewards() {
+	let claimableRewards = [];
+	let claimedCount = 0;
+	let failedRewards = [];
+	let successDetails = []; // 新增：存储成功领取的详细信息
+
+	// 找出所有可领取但未领取的奖励
+	for (let i = 0; i < config.reward.length; i++) {
+		const reward = config.reward[i];
+		const isReceived = (g_ClaimStatus & (1 << i)) !== 0;
+		const isClaimable = g_OnlineMinutes >= reward.online;
+
+		if (!isReceived && isClaimable) {
+			claimableRewards.push(i);
+		}
+	}
+
+	if (claimableRewards.length === 0) {
+		cm.sendOkLevel("", "#e#b没有可领取的奖励！#k#n\r\n\r\n所有可领取的奖励已经领取完毕，或者您的在线时长不足以领取任何奖励。");
+		return;
+	}
+
+	// 尝试领取所有可领取的奖励
+	for (let i = 0; i < claimableRewards.length; i++) {
+		const index = claimableRewards[i];
+		const result = internalGiveRewardItems(index, 1);
+
+		if (result.success) {
+			claimedCount++;
+			// 更新领取状态
+			g_ClaimStatus |= (1 << index);
+			saveOnlineStatus(g_ClaimStatus);
+
+			// 记录成功领取的详细信息
+			const reward = config.reward[index];
+			successDetails.push({
+				title: `【${formatMinutes(reward.online)}】在线奖励`,
+				items: result.items
+			});
+		} else {
+			failedRewards.push({
+				index: index,
+				message: result.message
+			});
+		}
+	}
+
+	// 显示领取结果 - 详细展示成功领取的奖励
+	let resultText = `#e#b一键领取完成！#k#n\r\n\r\n`;
+	resultText += `成功领取: #e#b${claimedCount}#k#n 个奖励\r\n`;
+
+	if (successDetails.length > 0) {
+		resultText += `\r\n#e#b成功领取的奖励详情：#k#n\r\n`;
+
+		for (let i = 0; i < successDetails.length; i++) {
+			resultText += `\r\n#e${successDetails[i].title}#k#n\r\n`;
+			resultText += `${successDetails[i].items.join('\r\n')}\r\n`;
+		}
+	}
+
+	if (failedRewards.length > 0) {
+		resultText += `\r\n领取失败: #e#r${failedRewards.length}#k#n 个奖励\r\n\r\n`;
+		resultText += `#e#r领取失败的奖励：#k#n\r\n`;
+
+		for (let i = 0; i < failedRewards.length; i++) {
+			const reward = config.reward[failedRewards[i].index];
+			resultText += `【${formatMinutes(reward.online)}】在线奖励: ${failedRewards[i].message}\r\n`;
+		}
+	}
+
+	cm.sendOkLevel("", resultText);
+}
+
+function levelgiveRewardItems() {
+	const result = internalGiveRewardItems(g_Select, g_itemCount);
+	if (result.success) {
+		saveOnlineStatus(g_ClaimStatus);//更新领取记录
+	}
+
+	// 显示领取结果
+	let resultText = "#e#b奖励领取完成！#k#n\r\n\r\n";
+	if (result.success) {
+		resultText += `#e${config.reward[g_Select].title.toString().replace(/#[a-zA-Z]/g,"")}#k#n\r\n\r\n`;
+		resultText += result.items.join('\r\n');
+	} else {
+		resultText += "#e#r领取失败！#k#n\r\n\r\n";
+		resultText += result.message;
+	}
+
+	cm.sendOkLevel("", resultText);
+}
+
 /**
- * 发放奖励道具（支持多份兑换）
+ * 内部发放奖励道具（支持多份兑换）
  * @param {number} Select - 奖励索引
  * @param {number} [count=1] - 兑换份数（默认为1）
- * @returns {string} 发放结果信息（失败时返回无法兑换的物品列表）
+ * @returns {object} 发放结果 {success: boolean, message: string, items: array}
  */
-function giveRewardItems(Select,count = 1) {
+function internalGiveRewardItems(Select, count = 1) {
 	if (count <= 0 || count > g_itemCount) {
-		return "输入的份数不能 ≤0 且 不能超过最大份数 " + g_itemCount;
+		return {
+			success: false,
+			message: "输入的份数不能 ≤0 且 不能超过最大份数 " + g_itemCount,
+			items: []
+		};
 	}
 	const reward = config.reward[Select];
 	// 验证普通物品
@@ -208,7 +319,11 @@ function giveRewardItems(Select,count = 1) {
 	}
 
 	if (failedItems.length > 0) {
-		return ` 背包空间不足，无法兑换以下物品：\r\n\r\n${failedItems.join('\r\n')}`;
+		return {
+			success: false,
+			message: `背包空间不足，无法兑换以下物品：\r\n\r\n${failedItems.join('\r\n')}`,
+			items: []
+		};
 	}
 
 	// 实际发放所有物品
@@ -242,9 +357,13 @@ function giveRewardItems(Select,count = 1) {
 			successItems.push(`#fUI/Basic.img/CheckBox/1# ${succitemshow}`);
 		}
 	}
-	saveOnlineStatus(g_ClaimStatus);//更新领取记录
+
 	cm.dropMessage(0,`你已成功领取了 ${reward.title.toString().replace(/#[a-zA-Z]/g,"")}！`);
-	return `#fUI/UIWindow.img/QuestIcon/4/0#\r\n\r\n${successItems.join('\r\n')}`;
+	return {
+		success: true,
+		message: "",
+		items: successItems
+	};
 }
 
 /**
@@ -301,7 +420,27 @@ function getOnlineRewardListText() {
 	let CheckBox_1 = "#fUI/Basic.img/CheckBox/1#";
 	let CheckBox_2 = "#fUI/Basic.img/CheckBox/2#";
 
-	return config.reward.map((obj, i) => {
+	let hasClaimable = false; // 检查是否有可领取的奖励
+
+	// 先添加一键领取选项（如果有可领取的奖励）
+	let rewardText = "";
+	for (let i = 0; i < config.reward.length; i++) {
+		const isReceived = (g_ClaimStatus & (1 << i)) !== 0;
+		const isClaimable = g_OnlineMinutes >= config.reward[i].online;
+
+		if (!isReceived && isClaimable) {
+			hasClaimable = true;
+			break;
+		}
+	}
+
+	// 将一键领取选项放在开头
+	if (hasClaimable) {
+		rewardText += "#L" + CLAIM_ALL_INDEX + "##e#b【一键领取奖励】#k#n#l\r\n";
+	}
+
+	// 然后添加各个奖励选项
+	rewardText += "\r\n" + config.reward.map((obj, i) => {
 		const isReceived = (g_ClaimStatus & (1 << i)) !== 0;  // 精确检查每一位
 		const isClaimable = g_OnlineMinutes >= obj.online;
 		let text = "";
@@ -316,16 +455,16 @@ function getOnlineRewardListText() {
 		if (!isReceived) {
 			listtext.push(1);
 			if (isClaimable) {
-				text += `\r\n#L${i}##b领取【${formatMinutes(obj.online)}#b】在线奖励 ${CheckBox_0}#k#l`;
+				text += `#L${i}##b领取【${formatMinutes(obj.online)}#b】在线奖励 ${CheckBox_0}#k#l`;
 			} else {
-				text += `\r\n#L${i}##r查看【${formatMinutes(obj.online)}#r】在线奖励 ${CheckBox_2}#k#l`;
+				text += `#L${i}##r查看【${formatMinutes(obj.online)}#r】在线奖励 ${CheckBox_2}#k#l`;
 			}
 		} else {
-			if (i > 0 && listtext[i-1] === 1) text += "\r\n";
-			text += `\r\n\t  已领【${formatMinutes(obj.online)}】在线奖励 ${CheckBox_1}`;
+			text += `\t  已领【${formatMinutes(obj.online)}】在线奖励 ${CheckBox_1}`;
 			listtext.push(0);
 		}
 		return text;
-	}).join("");
-}
+	}).join("\r\n");
 
+	return rewardText;
+}
