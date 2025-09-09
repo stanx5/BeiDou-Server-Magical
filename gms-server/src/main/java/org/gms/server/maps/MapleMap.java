@@ -2237,6 +2237,61 @@ public class MapleMap {
         }
     }
 
+    /**
+     * 从指定坐标生成物品掉落列表和数量
+     * @param list 物品ID列表
+     * @param copies 对应掉落数量
+     * @param dropper 地图对象
+     * @param owner 归属角色
+     * @param pos 坐标POS
+     * @param ffaDrop 疑似家族掉落？不确定
+     * @param playerDrop 组队掉落
+     */
+    public final void spawnItemDropList(List<Integer> list, List<Integer> copies, final MapObject dropper, final Character owner, Point pos, final boolean ffaDrop, final boolean playerDrop) {
+        if (list == null || copies == null || list.size() != copies.size() || list.isEmpty()) {
+            return;
+        }
+
+        // 创建索引列表并打乱顺序
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            indices.add(i);
+        }
+        Collections.shuffle(indices);
+
+        ItemInformationProvider ii = ItemInformationProvider.getInstance();
+        final Point dropPos = new Point(pos);
+        dropPos.x -= (12 * list.size());
+
+        for (int index : indices) {
+            int itemId = list.get(index);
+            int quantity = copies.get(index);
+
+            if (quantity < 1) {
+                dropPos.x += 25;
+                continue; // 跳过数量小于1的项
+            }
+
+            if (itemId == 0) {
+                // 金币掉落
+                spawnMesoDrop(quantity * (owner != null ? NumberTool.floatToInt(owner.getMesoRate()) : 1),
+                        calcDropPos(dropPos, pos), dropper, owner, playerDrop, (byte) (ffaDrop ? 2 : 0));
+            } else {
+                // 物品掉落
+                final Item drop;
+                if (ItemConstants.getInventoryType(itemId) != InventoryType.EQUIP) {
+                    // 非装备物品，使用指定数量
+                    drop = new Item(itemId, (short) 0, (short) quantity);
+                } else {
+                    // 装备物品，随机化属性
+                    drop = ii.randomizeStats((Equip) ii.getEquipById(itemId));
+                }
+                spawnItemDrop(dropper, owner, drop, calcDropPos(dropPos, pos), ffaDrop, playerDrop);
+            }
+
+            dropPos.x += 25;
+        }
+    }
     private void registerMapSchedule(Runnable r, long delay) {
         OverallService service = (OverallService) this.getChannelServer().getServiceAccess(ChannelServices.OVERALL);
         service.registerOverallAction(mapid, r, delay);

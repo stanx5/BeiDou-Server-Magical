@@ -34,7 +34,7 @@ var clearMap = 220080000;
 var minMapId = 220080001;
 var maxMapId = 220080001;
 
-var eventTime = 45;     // 45 minutes
+var eventTime = 25;     // 45 minutes
 
 const maxLobbies = 1;
 
@@ -217,6 +217,7 @@ function clearPQ(eim) {
     eim.stopEventTimer();
     eim.setEventCleared();
     updateGateState(0);
+    eim.startEventTimer(2 * 60000);  //2分钟后强制清场
 }
 
 function isPapulatus(mob) {

@@ -1,6 +1,10 @@
+/**
+ * 藏经阁七层 少林妖僧
+ * @type {boolean}
+ */
 // 事件实例化变量
-var isPq = false; // 是否为PQ（Party Quest）类型事件。
-var minPlayers = 1, maxPlayers = 6; // 该事件实例允许的队伍成员数量范围。
+var isPq = true; // 是否为PQ（Party Quest）类型事件。
+var minPlayers = 3, maxPlayers = 6; // 该事件实例允许的队伍成员数量范围。
 var minLevel = 120, maxLevel = 255;     // 合格队伍成员的等级范围。
 var entryMap = 702060000;               // 事件启动时玩家进入的初始地图。
 var exitMap = 702070400;                // 玩家未能完成事件时被传送至此地图。
@@ -15,12 +19,33 @@ var eventTime = 30;              // 事件的最大允许时间，以分钟计�
 const maxLobbies = 1;       // 并发活跃大厅的最大数量。
 
 var BossID = 9600025;                   // 待生成的BOSS
+var endBossID = 9600025;                // 检测到该BOSS死亡则结束事件，不设置时使用生成的BossID
 var PosX = 351 , PosY = 580;           // 生成的坐标
 var Difficulty = true;                  // 根据传入的难度值以倍数方式提高怪物的各项指标，在BossID有效的情况下。
 
-var BossDropList = [2000005];                  // 掉落物品列表
-var BossDropCount = [5];                 // 掉落最大数量
-var BossDropChance = [0.4];                // 掉率
+// 掉落配置JSON
+var lootConfig = {"loot": [
+        {"id":4021004,"name":"蛋白石","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021003,"name":"祖母绿","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021002,"name":"海蓝宝石","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021001,"name":"紫水晶","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021000,"name":"石榴石","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021008,"name":"黑水晶","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021007,"name":"钻石","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021006,"name":"黄晶","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4021005,"name":"蓝宝石","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":2040705,"name":"鞋子跳跃卷轴10%","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":2040708,"name":"鞋子速度卷轴10%","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":4310015,"name":"斗神证物","qtyMin":1,"qtyMax":1,"chance":2.5},
+        {"id":4001002,"name":"小说书","qtyMin":1,"qtyMax":1,"chance":2.5},
+        {"id":2040502,"name":"全身铠甲敏捷卷轴10%","qtyMin":1,"qtyMax":1,"chance":10},
+        {"id":2022468,"name":"心跳箱子","qtyMin":1,"qtyMax":1,"chance":20},
+        {"id":2022468,"name":"心跳箱子","qtyMin":1,"qtyMax":1,"chance":20},
+        {"id":2022468,"name":"心跳箱子","qtyMin":1,"qtyMax":1,"chance":20},
+        {"id":2022468,"name":"心跳箱子","qtyMin":1,"qtyMax":1,"chance":20},
+        {"id":2022468,"name":"心跳箱子","qtyMin":1,"qtyMax":1,"chance":20}
+    ]
+};
 
 const GameConfig = Java.type('org.gms.config.GameConfig');
 minPlayers = GameConfig.getServerBoolean("use_enable_solo_expeditions") ? 1 : minPlayers;  //如果解除远征队人数限制，则最低人数改为1人
@@ -108,7 +133,7 @@ function getEligibleParty(party) {
         for (var i = 0; i < party.size(); i++) {
             var ch = partyList[i];
 
-            if (ch.getMapId() == recruitMap && ch.getLevel() >= minLevel && ch.getLevel() <= maxLevel) {
+            if (ch.getMapId() === recruitMap && ch.getLevel() >= minLevel && ch.getLevel() <= maxLevel) {
                 if (ch.isLeader()) {
                     hasLeader = true;
                 }
@@ -148,6 +173,7 @@ function setup(level, lobbyid) {
         if(mob != null) {
             let map = eim.getMapInstance(entryMap);
             map.killAllMonsters();      // 杀死原本地图上的所有怪物
+            map.clearDrops();           // 清理掉落的物品
             if(Difficulty) {
                     level = level <= 0 ? 1 : level; //最小难度为1
                 let stats = mob.getStats();
@@ -167,18 +193,7 @@ function setup(level, lobbyid) {
             map.spawnMonsterOnGroundBelow(mob, new java.awt.Point(PosX, PosY));     //生成指定怪物在指定坐标
         }
     }
-    const DropList = BossDropList;                                  // 掉落物品列表
-    const DropCount = BossDropCount;                                // 掉落最大数量
-    const DropChance = BossDropChance;                              // 掉率
-    BossDropList = [];
-    for (let i = 0; i < DropList.length; i++) {
-        const chance = DropChance[i] * 10000;
-        for (let j = 0; j < DropCount[i]; j++) {
-            if (Math.random() * 10000 < chance) {
-                BossDropList.push(DropList[i]);
-            }
-        }
-    }
+
     return eim;
 }
 
@@ -367,6 +382,7 @@ function giveRandomEventReward(eim, player) {
  * @param {EventInstanceManager} eim - 事件实例管理器。
  */
 function clearPQ(eim) {
+    // eim.showClearEffect();   //展示通过的图片
     eim.stopEventTimer();
     eim.setEventCleared();
     eim.startEventTimer(2 * 60000);  //2分钟后强制清场
@@ -382,10 +398,29 @@ function monsterKilled(mob, eim) {
         if (eim.isEventCleared()) {
             return;
         }
-        if(mob.getId() == BossID) {
+        let id = mob.getId();
+        if((endBossID && id === endBossID) || (!endBossID && id === BossID)) {
             var mapObj = mob.getMap();
             var dropper = eim.getPlayers().get(0);
-            mapObj.spawnItemDropList(BossDropList,mob,dropper,mob.getPosition());
+
+            // 创建两个列表：一个用于物品ID，一个用于数量
+            var itemIds = [];
+            var quantities = [];
+
+            // 处理每个掉落项
+            lootConfig.loot.forEach(item => {
+                // 计算概率（chance * 10000，然后与1000000比较）
+                const chanceValue = item.chance * 10000;
+                if (Math.random() * 1000000 < chanceValue) {
+                    // 计算掉落数量（qtyMin~qtyMax之间的随机数）
+                    const dropCount = Math.floor(Math.random() * (item.qtyMax - item.qtyMin + 1)) + item.qtyMin;
+
+                    // 将物品ID和数量添加到对应的列表中（保持重复ID）
+                    itemIds.push(item.id);
+                    quantities.push(dropCount);
+                }
+            });
+            mapObj.spawnItemDropList(itemIds, quantities, mob, dropper, mob.getPosition(), true, false);
             clearPQ(eim);
         }
     } catch (err) {
@@ -398,7 +433,7 @@ function monsterKilled(mob, eim) {
  * @param {EventInstanceManager} eim - 事件实例管理器。
  */
 function allMonstersDead(eim) {
-    clearPQ(eim);
+    // clearPQ(eim);
 }
 
 /**
