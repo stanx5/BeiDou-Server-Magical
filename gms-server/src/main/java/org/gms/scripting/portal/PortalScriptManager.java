@@ -58,7 +58,7 @@ public class PortalScriptManager extends AbstractScriptManager {
 
         script = iv.getInterface(PortalScript.class);
         if (script == null) {
-            throw new ScriptException(String.format("Portal script \"%s\" fails to implement the PortalScript interface", scriptName));
+            throw new ScriptException(String.format("[传送门] 脚本 %s 未实现 PortalScript 接口", scriptName));
         }
 
         scripts.put(scriptPath, script);
@@ -68,17 +68,22 @@ public class PortalScriptManager extends AbstractScriptManager {
     public boolean executePortalScript(Portal portal, Client c) {
         try {
             String strPortalName = portal.getScriptName();
-            if (GameConfig.getServerBoolean("use_debug") && c.getPlayer().isGM() )
-            {
-                c.getPlayer().dropMessage("您已建立与传送门脚本: " + strPortalName + ".js 的关联。");
-            }
             PortalScript script = getPortalScript(strPortalName);
+
+            if (GameConfig.getServerBoolean("use_debug") && c.getPlayer().isGM())  {
+                if (script != null) {
+                    c.getPlayer().dropMessage("[传送门] 已与脚本 " + strPortalName + " 建立关联。");
+                } else {
+                    c.getPlayer().dropMessage(5,"[传送门] 脚本 " + strPortalName + " 不存在。");
+                    log.warn("[传送门] 脚本 {} 不存在" ,strPortalName);
+                }
+            }
             if (script != null) {
                 return script.enter(new PortalPlayerInteraction(c, portal));
             }
         } catch (Exception e) {
-
-            log.warn("Portal script error in: {}", portal.getScriptName(), e);
+            c.getPlayer().dropMessage(5,"[传送门] 脚本 " + portal.getScriptName() + " 执行错误。");
+            log.warn("[传送门] 脚本 {} 执行出错 ", portal.getScriptName(), e);
         }
         return false;
     }
