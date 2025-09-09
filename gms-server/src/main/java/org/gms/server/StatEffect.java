@@ -334,8 +334,8 @@ public class StatEffect {
                     ret.mmpR = (byte) DataTool.getInt("mmpR", source, 0);
                     ret.mmpRRate = (short) (DataTool.getInt("mmpRRate", source, 0) * 100);
 
-                    addBuffStatPairToListIfNotZero(statups, BuffStat.HPREC, (int) ret.mhpR);
-                    addBuffStatPairToListIfNotZero(statups, BuffStat.MPREC, (int) ret.mmpR);
+                    addBuffStatPairToListIfNotZero(statups, BuffStat.HYPERBODYHP, (int) ret.mhpR);
+                    addBuffStatPairToListIfNotZero(statups, BuffStat.HYPERBODYMP, (int) ret.mmpR);
 
                 } else if (ItemId.isRateCoupon(sourceid)) {
                     switch (DataTool.getInt("expR", source, 0)) {
