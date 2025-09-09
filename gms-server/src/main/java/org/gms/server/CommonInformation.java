@@ -103,7 +103,7 @@ public class CommonInformation {
             String id = child.getName();
             String name = DataTool.getString("name", child, "");
             String desc = DataTool.getString("desc", child, "");
-            if (isMatch(id, name, filter, filterType, fullMatch)) {
+            if (isMatch(id, name, desc, filter, filterType, fullMatch)) {
                 results.add(InformationResult.builder()
                         .type(infType.getType())
                         .id(Integer.parseInt(id))
@@ -120,7 +120,7 @@ public class CommonInformation {
             String id = child.getName();
             String name = DataTool.getString("mapName", child, "");
             String desc = DataTool.getString("streetName", child, "");
-            if (isMatch(id, name, filter, filterType, fullMatch)) {
+            if (isMatch(id, name, desc, filter, filterType, fullMatch)) {
                 results.add(InformationResult.builder()
                         .type(infType.getType())
                         .id(Integer.parseInt(id))
@@ -131,7 +131,17 @@ public class CommonInformation {
         }
     }
 
-    private boolean isMatch(String id, String name, String filter, int filterType, boolean fullMatch) {
+    /**
+     * 模糊搜索，支持id,name,desc内容搜索
+     * @param id
+     * @param name
+     * @param desc
+     * @param filter
+     * @param filterType
+     * @param fullMatch
+     * @return
+     */
+    private boolean isMatch(String id, String name, String desc, String filter, int filterType, boolean fullMatch) {
         boolean match = false;
         if (filterType == 0 || filterType == 1) {
             match = fullMatch ? id.equals(filter) : id.contains(filter);
@@ -141,6 +151,12 @@ public class CommonInformation {
         }
         if (filterType == 0 || filterType == 2) {
             match = fullMatch ? name.equals(filter) : name.contains(filter);
+        }
+        if (match) {
+            return true;
+        }
+        if (filterType == 0 || filterType == 2) {
+            match = fullMatch ? desc.equals(filter) : desc.contains(filter);
         }
         return match;
     }
