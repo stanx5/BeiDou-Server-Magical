@@ -23,6 +23,8 @@ import org.gms.config.GameConfig;
 import org.gms.net.server.Server;
 import org.gms.server.ThreadManager;
 import org.gms.server.TimerManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -37,6 +39,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author Ronan
  */
 public class EventScriptScheduler {
+    private static final Logger log = LoggerFactory.getLogger(EventScriptScheduler.class);
 
     private boolean disposed = false;
     private int idleProcs = 0;
@@ -76,8 +79,15 @@ public class EventScriptScheduler {
             if (rmd.getValue() < timeNow) {
                 Runnable r = rmd.getKey();
 
-                r.run();  // runs the scheduled action
-                toRemove.add(r);
+                try {
+                    r.run();  // 运行计划任务
+                } catch (Exception e) {
+                    // 记录异常但继续处理其他任务
+                    log.error("[事件脚本] 计划任务执行失败，任务: {}", r, e);
+                } finally {
+                    // 无论任务是否成功执行，都标记为需要移除
+                    toRemove.add(r);
+                }
             }
         }
 
