@@ -157,7 +157,8 @@ public class TimerManager implements TimerManagerMBean {
             try {
                 r.run();
             } catch (Throwable t) {
-                log.error("[计划任务] 运行出错：", t);
+                log.error("[计划任务] 任务类名 {}， 运行出错： {}" , r.getClass().getName(), t);
+                t.printStackTrace();//控制台打印
             }
         }
     }
