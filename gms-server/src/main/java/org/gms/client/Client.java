@@ -215,7 +215,7 @@ public class Client extends ChannelInboundHandlerAdapter {
         final PacketHandler handler = packetProcessor.getHandler(opcode);
 
         if (GameConfig.getServerBoolean("use_debug_show_rcvd_packet") && !LoggingUtil.isIgnoredRecvPacket(opcode)) {
-            log.info("收到封包 包头ID [{}] 内容： {}", String.format("0x%02X", opcode),packet);
+            log.info("收到封包 包头ID [{}] 包名 [{}] 内容： {}", String.format("0x%02X", opcode),handler.getClass().getSimpleName(),packet);
         }
 
         if (handler != null && handler.validateState(this)) {
