@@ -697,7 +697,6 @@ public class Server {
         couponRates.clear();
         nxcouponsDOList.forEach(nxcouponsDO -> couponRates.put(nxcouponsDO.getCouponid(), nxcouponsDO.getRate()));
         updateActiveCoupons();
-        newYearCardService.startPendingNewYearCardRequests();
         CashIdGenerator.loadExistentCashIdsFromDb();
 
         // 接受未完成的改名
@@ -715,8 +714,9 @@ public class Server {
         log.info(I18nUtil.getLogMessage("Server.init.info5"));
 
         ThreadManager.getInstance().start();
+        //基于lxconan的实时任务聚合方法 ，需要在newYearCardService.startPendingNewYearCardRequests()方法之前调用，否则存在概率造成TimerManager的ses为null导致无法启动
         initializeTimelyTasks();    // aggregated method for timely tasks thanks to lxconan
-
+        newYearCardService.startPendingNewYearCardRequests();
         try {
             for (int i = 0; i < worldCount; i++) {
                 initWorld();
