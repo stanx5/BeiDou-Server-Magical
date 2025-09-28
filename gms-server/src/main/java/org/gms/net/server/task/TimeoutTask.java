@@ -20,7 +20,7 @@ public class TimeoutTask extends BaseTask implements Runnable {
         Collection<Character> chars = wserv.getPlayerStorage().getAllCharacters();
         for (Character chr : chars) {
             if (time - chr.getClient().getLastPacket() > GameConfig.getServerLong("timeout_duration")) {
-                log.info("Chr {} auto-disconnected due to inactivity", chr.getName());
+                log.info("玩家 {} 由于不活动而自动断开连接", chr.getName());
                 // 默认1h还没有发过任何包，那就是异常连接，直接断开
                 chr.getClient().timeoutDisconnect();
             }
