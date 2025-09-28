@@ -676,18 +676,23 @@ public class MapleMap {
                     pos.x = mobpos + ((d % 2 == 0) ? (25 * ((d + 1) / 2)) : -(25 * (d / 2)));
                 }
                 if (de.itemId == 0) { // meso
-                    int mesos = Randomizer.nextInt(de.Maximum - de.Minimum + 1) + de.Minimum;
+                    long mesos = Randomizer.nextInt(de.Maximum - de.Minimum + 1) + de.Minimum;
 
                     if (mesos > 0) {
                         if (chr.getBuffedValue(BuffStat.MESOUP) != null) {
                             mesos = NumberTool.doubleToInt(mesos * chr.getBuffedValue(BuffStat.MESOUP).doubleValue() / 100.0);
                         }
                         mesos = NumberTool.floatToInt(mesos * chr.getMesoRate());
-                        if (mesos <= 0) {
+                        if (mesos < Integer.MIN_VALUE) {
+                            mesos = Integer.MIN_VALUE;
+                        } else if (mesos > Integer.MAX_VALUE) {
                             mesos = Integer.MAX_VALUE;
                         }
-
-                        spawnMesoDrop(mesos, calcDropPos(pos, mob.getPosition()), mob, chr, false, droptype);
+                        if (mesos >= 1) {//低于1的金币发送会报错
+                            spawnMesoDrop((int) mesos, calcDropPos(pos, mob.getPosition()), mob, chr, false, droptype);
+                        } else {//当金币为负数时，直接从背包里扣款
+                            chr.gainMeso((int) mesos,true);
+                        }
                     }
                 } else {
                     if (ItemConstants.getInventoryType(de.itemId) == InventoryType.EQUIP) {
