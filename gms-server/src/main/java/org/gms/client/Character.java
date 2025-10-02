@@ -25,6 +25,7 @@ package org.gms.client;
 import lombok.Getter;
 import lombok.Setter;
 import org.gms.cheatsystem.cheatCharacter;
+import org.gms.cheatsystem.itemVac;
 import org.gms.client.autoban.AutobanManager;
 import org.gms.client.creator.CharacterFactoryRecipe;
 import org.gms.client.inventory.*;
@@ -263,6 +264,8 @@ public class Character extends AbstractCharacterObject {
     private boolean equippedItemPouch = false;
     @Getter
     private boolean equippedPetItemIgnore = false;
+    @Getter
+    private boolean equippedPetItemScales = false;
     private boolean usedSafetyCharm = false;
     @Getter
     @Setter
@@ -1148,7 +1151,7 @@ public class Character extends AbstractCharacterObject {
             addhp += Randomizer.rand(300, 350);
             addmp += Randomizer.rand(150, 200);
         }
-        
+
         /*
         //aran perks?
         int newJobId = newJob.getId();
@@ -1232,7 +1235,7 @@ public class Character extends AbstractCharacterObject {
         if (guild != null) {
             guild.broadcast(packet, id);
         }
-        
+
         /*
         if(partnerid > 0) {
             partner.sendPacket(packet); not yet implemented
@@ -2343,35 +2346,78 @@ public class Character extends AbstractCharacterObject {
      * 启动自动吸物定时器
      */
     public void startCheatItemVac() {
+        if (!isLoggedInWorld() || pets[0] == null) {// 前置条件检查
+//            log.warn("角色 {} 不在游戏世界或没有主宠，不创建宠吸实例", name);
+            return;
+        }
+
         chrLock.lock();
         try {
-            if (isLoggedInWorld() && pets[0] != null) {
-                if (cheatChaeracter_Timer_itemvac != null) stopCheatItemVac();    //如已有定时任务，则先停止
-                boolean enable = cheatcharacter.getItemvac().updatePetVacParam() && cheatcharacter.getItemvac().isEnable();  //更新吸物参数，并且检测是否启用宠吸
-                    int delay = cheatcharacter.getItemvac().getSleep();               //获取检测间隔
-                if (enable && delay > 0) {
-                    cheatChaeracter_Timer_itemvac = TimerManager.getInstance().register(() -> {
-                        if (cheatcharacter.getItemvac().updatePetVacParam() && cheatcharacter.getItemvac().isEnable() && isLoggedInWorld() && pets[0] != null) {  //角色在线且存在主宠，执行拾取操作
-//                            log.info("角色 {} 在线，进行宠吸，重复间隔：{}，检测范围：{}",name, delay,cheatcharacter.getItemvac().getRadius());
-                            cheatcharacter.getItemvac().pickupItem((byte) 0);   //传递主宠索引
-                            if (delay != cheatcharacter.getItemvac().getSleep()) {  //如果定时间隔有变化，则重新启动定时器。
-//                                log.info("角色 {} 检测到间隔变化 ， {}",name,delay);
-                                startCheatItemVac();
-                            }
-                        } else {
-                            stopCheatItemVac(); //离线或者没有主宠，停止定时器
-                        }
-                    }, delay, 1000);
+            if (!isLoggedInWorld() || pets[0] == null) {// 双重检查（加锁后再次验证）
+                return;
+            }
+            stopCheatItemVac();// 停止现有定时器
+            itemVac itemVac = cheatcharacter.getItemvac();
+            // 参数验证
+            if (!itemVac.updatePetVacParam() || !itemVac.isEnable()) {
+//                log.warn("角色 {} 宠吸功能未启用或参数更新失败", name);
+                return;
+            }
+            int delay = itemVac.getSleep();
+            if (delay <= 0) {
+//                log.warn("角色 {} 宠吸间隔配置无效: {}", name, delay);
+                return;
+            }
 
-//                    log.info("角色 {} ，创建吸物实例 {}",name, cheatChaeracter_Timer_itemvac);
-                } else {
-//                    log.warn("角色 {} 没有配置宠吸间隔",name);
+            // 创建定时任务
+            cheatChaeracter_Timer_itemvac = TimerManager.getInstance().register(() -> {
+                // 定时任务执行逻辑
+                try {
+                    // 条件检查
+                    if (!isLoggedInWorld() || pets[0] == null || !itemVac.updatePetVacParam() || !itemVac.isEnable()) {
+                        stopCheatItemVac();
+                        return;
+                    }
+
+                    // 执行吸物操作
+                    itemVac.pickupItem((byte) 0);
+
+                    // 检查间隔变化
+                    int currentDelay = itemVac.getSleep();
+                    if (currentDelay != delay) {
+                        // 异步重新启动，避免定时器线程阻塞
+                        TimerManager.getInstance().schedule(this::startCheatItemVac, 0);
+                    }
+
+                } catch (Exception ex) {
+//                    log.error("角色 {} 宠吸任务执行异常", name, ex);
+                    stopCheatItemVac();
                 }
-            } else {
-//                log.warn("角色 {} 不在游戏世界，不创建宠吸实例",name);
+            }, delay, 1000);
+//            log.info("角色 {} 启动宠吸功能，间隔: {}ms", name, delay);
+            if (itemVac.isSHOW_PARAMS()) {//是否显示宠吸参数提示
+                StringBuilder sb = new StringBuilder();
+
+                // 转换为秒，保留1位小数
+                double intervalSeconds = delay / 1000.0;
+
+                sb.append("#e#b宠物智能拾取参数#k#n\r\n");
+                sb.append("════════════════\r\n");
+                sb.append(String.format("多人事件拾取：%s\r\n", itemVac.isALLOW_IN_EVENT() ? "#b√#k" : "#r×#k"));
+                sb.append(String.format("智能拾取金币：%s\r\n", isEquippedMesoMagnet() ? "#b√#k" : "#r×#k"));
+                sb.append(String.format("智能拾取物品：%s\r\n", isEquippedItemPouch() ? "#b√#k" : "#r×#k"));
+                sb.append(String.format("智能过滤物品：%s\r\n", isEquippedPetItemIgnore() ? "#b√#k" : "#r×#k"));
+                sb.append(String.format("拾取超时物品：%s\r\n", isEquippedPetItemScales() ? "#b√#k" : "#r×#k"));
+                sb.append(String.format("智能拾取半径：%.0f 码\r\n", itemVac.getRadius() / 30));
+                sb.append(String.format("智能拾取间隔：%.1f 秒\r\n", intervalSeconds));
+                sb.append("════════════════\r\n");
+                sb.append("可从商城购买宠物装备激活特定功能\r\n");
+                showHint(sb.toString(), 200); // 显示提示
             }
         } catch (Exception ex) {
-            log.error("角色 {} 自动宠吸定时器启动失败",name,ex);
+            log.error("角色 {} 自动宠吸定时器启动失败", name, ex);
+            // 异常时清理资源
+            stopCheatItemVac();
         } finally {
             chrLock.unlock();
         }
@@ -9168,6 +9214,8 @@ public class Character extends AbstractCharacterObject {
             equippedItemPouch = true;
         } else if (itemid == ItemId.ITEM_IGNORE) {
             equippedPetItemIgnore = true;
+        } else if (itemid == ItemId.ITEM_SCALES) {
+            equippedPetItemScales = true;
         }
     }
 
@@ -9182,6 +9230,8 @@ public class Character extends AbstractCharacterObject {
             equippedItemPouch = false;
         } else if (itemid == ItemId.ITEM_IGNORE) {
             equippedPetItemIgnore = false;
+        } else if (itemid == ItemId.ITEM_SCALES) {
+            equippedPetItemScales = false;
         }
     }
 

@@ -185,9 +185,10 @@ public class ItemId {
     public static final int ROBO_PET = 5000047;
 
     // Pet equip
-    public static final int MESO_MAGNET = 1812000;
-    public static final int ITEM_POUCH = 1812001;
-    public static final int ITEM_IGNORE = 1812007;
+    public static final int MESO_MAGNET = 1812000;  //宠物磁铁
+    public static final int ITEM_POUCH = 1812001;   //宠物捡取袋
+    public static final int ITEM_IGNORE = 1812007;  //不捡取特定物品的挂件
+    public static final int ITEM_SCALES = 1812006;  //魔法天平
 
     public static boolean isPet(int itemId) {
         return itemId / 1000 == 5000;

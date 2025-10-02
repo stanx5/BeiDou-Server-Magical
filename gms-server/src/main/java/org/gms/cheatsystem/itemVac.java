@@ -18,16 +18,32 @@ import java.util.Set;
 @Setter
 public class itemVac extends basic {
     private Character player;
-    private boolean enable = true;          //宠吸开关
+    /** 宠吸功能总开关 */
+    private boolean enable = true;
+    /** 是否允许在事件地图中使用宠吸功能，false=当检测到事件地图出现BOSS则关闭宠吸 */
+    private boolean ALLOW_IN_EVENT = false;
+    /** 是否在界面上展示参数提示信息 */
+    private boolean SHOW_PARAMS = true;
+    /** 最大拾取半径限制 */
     private double MAX_RADIUS = 15000;
-    private double radius = Double.POSITIVE_INFINITY;   //默认拾取半径为无穷大
-    private long pickupTime = currentServerTime();      //上一次拾取时间
-    private boolean pickuping = false;                  //拾取中，如果为true，即使无冷却也会直接放弃操作
-    private int MIN_INTERVAL = 500;                     //最低拾取间隔 ms
-    private int MAX_INTERVAL = 5 * 1000;                //最高拾取间隔 ms
-    private boolean AUTO_CALC = true;                   //自动计算拾取范围和拾取间隔
-    private int sleep = MAX_INTERVAL;                   //拾取间隔 ms
-    private int MAX_LEVEL = 20;                         //最高计算宠物等级
+    /** 当前拾取半径，默认无穷大表示无限制 */
+    private double radius = Double.POSITIVE_INFINITY;
+    /** 上一次执行拾取操作的时间戳 */
+    private long pickupTime = currentServerTime();
+    /** 拾取状态标志，true表示正在拾取中，避免重复操作 */
+    private boolean pickuping = false;
+    /** 最小拾取间隔时间（毫秒） */
+    private int MIN_INTERVAL = 200;
+    /** 最大拾取间隔时间（毫秒） */
+    private int MAX_INTERVAL = 5 * 1000;
+    /** 是否自动计算拾取范围和间隔 */
+    private boolean AUTO_CALC = true;
+    /** 当前使用的拾取间隔时间（毫秒） */
+    private int sleep = MAX_INTERVAL;
+    /** 宠吸功能支持的最高宠物等级 */
+    private int MAX_LEVEL = 20;
+    /** 击杀BOSS时间 */
+    private long killBossTime = -1;
 
     public itemVac(Character player) {
         this.player = player;
@@ -49,19 +65,22 @@ public class itemVac extends basic {
         this.sleep = sleep;
     }
     public boolean updatePetVacParam() {
-//        // 读取配置参数（集中管理）
-//        enable = GameConfig.getServerBoolean("cheat_pet_itemvac_switch");
-//
-//        // ==== 控制逻辑 ====
-//        if (!enable) {
-//            resetValues();
-//            return false;
-//        }
-//
-//        MAX_RADIUS = GameConfig.getServerDouble("cheat_pet_itemvac_radius_max");
-//        MIN_INTERVAL = Math.max(GameConfig.getServerInt("cheat_pet_itemvac_sleep_min"), 200);
-//        MAX_INTERVAL = GameConfig.getServerInt("cheat_pet_itemvac_sleep_max");
-//        AUTO_CALC = GameConfig.getServerBoolean("cheat_pet_itemvac_radius_auto");
+        // 读取配置参数（集中管理）
+        enable = GameConfig.getServerBoolean("cheat_pet_itemvac_switch");
+        ALLOW_IN_EVENT = GameConfig.getServerBoolean("cheat_pet_itemvac_allow_in_event");
+        SHOW_PARAMS = GameConfig.getServerBoolean("cheat_pet_itemvac_show_params");
+
+        // ==== 控制逻辑 ====
+        if (!enable) {
+            resetValues();
+            return false;
+        }
+
+        MAX_LEVEL = GameConfig.getServerInt("cheat_pet_itemvac_max_level");
+        MAX_RADIUS = GameConfig.getServerDouble("cheat_pet_itemvac_radius_max");
+        MIN_INTERVAL = Math.max(GameConfig.getServerInt("cheat_pet_itemvac_sleep_min"), 200);
+        MAX_INTERVAL = GameConfig.getServerInt("cheat_pet_itemvac_sleep_max");
+        AUTO_CALC = GameConfig.getServerBoolean("cheat_pet_itemvac_radius_auto");
 
         // ==== 控制逻辑 ====
         if (!enable || player == null || !player.isLoggedInWorld()) {
@@ -128,89 +147,6 @@ public class itemVac extends basic {
         this.sleep = MAX_INTERVAL;
     }
 
-    public boolean updatePetVacParam_bak2() {
-        enable = GameConfig.getServerBoolean("cheat_pet_itemvac_switch");
-        // ===== 控制开关检查 =====
-        if (!enable || player == null || !player.isLoggedInWorld()) {
-            this.radius = 0;
-            this.sleep = 0;
-            return false;
-        }
-        MAX_RADIUS = GameConfig.getServerDouble("cheat_pet_itemvac_radius_max");
-        MIN_INTERVAL = Math.max(GameConfig.getServerInt("cheat_pet_itemvac_sleep_min"), 200);
-        MAX_INTERVAL = GameConfig.getServerInt("cheat_pet_itemvac_sleep_max");
-        AUTO_CALC = GameConfig.getServerBoolean("cheat_pet_itemvac_radius_auto");
-
-        // 三元运算符（简洁高效，全版本兼容）
-        MAX_RADIUS *= (MAX_RADIUS <= 1000) ? 100 : (MAX_RADIUS <= 10000) ? 10 : 1;
-
-        // ===== 自动计算开关处理 =====
-        if (!AUTO_CALC) {
-            this.radius = MAX_RADIUS;
-            this.sleep = MAX_INTERVAL;
-            return true;
-        }
-
-        Pet pet = player.getPet(0);
-        if (pet == null) {
-            this.radius = 0;
-            this.sleep = 0;
-            return false;
-        }
-
-        // ===== 公式计算部分 =====
-        // 1. 计算饱食度系数（0.5-1.5线性变化）
-        final double fullnessFactor = 0.5 + pet.getFullness() / 100.0;
-
-        // 2. 半径计算公式（等级影响+饱食度修正）
-        final double levelProgress = Math.min((double)pet.getLevel() / MAX_LEVEL, 1.0);
-        this.radius = Math.min(
-                MAX_RADIUS *
-                        Math.sqrt(levelProgress) * // 平方根曲线平滑增长
-                        fullnessFactor,
-                MAX_RADIUS
-        );
-
-        // 3. 间隔计算公式（亲密度影响+饱食度修正）
-        final double tamenessRatio = pet.getTameness() / 100.0;
-        this.sleep = (int) Math.max(
-                MIN_INTERVAL,
-                Math.min(
-                        MAX_INTERVAL -
-                                (MAX_INTERVAL - MIN_INTERVAL) *
-                                        Math.pow(tamenessRatio, 0.7) * // 幂函数曲线
-                                        (1.5 - fullnessFactor), // 反向影响
-                        MAX_INTERVAL
-                )
-        );
-
-        return true;
-    }
-    /**
-     * 重新计算并更新主宠的拾取范围和拾取间隔
-     */
-    public void updatePetVacParam_bak() {
-        this.enable = GameConfig.getServerBoolean("cheat_pet_itemvac_switch");
-        if (!this.enable || player == null || !player.isLoggedInWorld()) {
-            this.radius = 0;
-            this.sleep = 0;
-            return;
-        }
-
-        this.MAX_RADIUS = GameConfig.getServerDouble("cheat_pet_itemvac_radius_max");
-        this.MIN_INTERVAL = Math.max(GameConfig.getServerInt("cheat_pet_itemvac_sleep_min"), 200);
-        this.MAX_INTERVAL = GameConfig.getServerInt("cheat_pet_itemvac_sleep_max");
-
-
-        Pet pet = player.getPet(0);
-        if (pet != null) {  //存在主宠
-            double per = pet.getFullness() / 100.0;
-            this.radius = GameConfig.getServerBoolean("cheat_pet_itemvac_radius_auto") ? pet.getLevel() * pet.getTameness() * per : this.MAX_RADIUS;
-            this.sleep = (int) (MAX_INTERVAL - pet.getTameness() / pet.getLevel() * 20 * per);
-            if (this.radius > MAX_RADIUS) radius = MAX_RADIUS;
-            if (this.sleep < MIN_INTERVAL) this.sleep = MIN_INTERVAL;
-        }
-    }
     /**
      * 人物范围吸物
      */
@@ -251,6 +187,31 @@ public class itemVac extends basic {
             if (player != null && player.isLoggedInWorld()) player.enableActions();
             return;
         }
+        int Stance = player.getStance();    //获取角色姿态，14~17 = 上下爬绳子、梯子；20 = 坐下
+        if (Stance >= 14 && Stance <= 17 || Stance == 20) {//爬绳和坐下不拾取
+            return;
+        }
+        // 检测条件并记录时间
+        if (!ALLOW_IN_EVENT && player.getEventInstance() != null && player.getMap().countBosses() > 0 && player.getMap().getPlayers().size() > 1) {
+            // 条件满足：不允许在事件中使用、角色在事件中、BOSS数量>0、地图人数>1，记录当前时间
+            killBossTime = currentServerTime();
+        } else if (player.getMap().getPlayers().size() == 1) {
+            // 地图人数=1时，重置时间为-1
+            killBossTime = -1;
+        } else if (player.getMap().getPlayers().size() > 1 && player.getMap().countBosses() == 0) {
+            // 地图人数>1且BOSS数量=0时
+            if (killBossTime != -1) {
+                if (currentServerTime() - killBossTime < 30000) { // 30秒 = 30000毫秒
+                    // 时间差小于30秒，不进行捡取操作
+                    return;
+                } else {
+                    // 时间差超过30秒，重置时间为-1
+                    killBossTime = -1;
+                }
+            }
+        } else if (killBossTime != -1) {
+            killBossTime = -1;
+        }
 
         pickuping = true;
 
@@ -261,12 +222,12 @@ public class itemVac extends basic {
         );
 
         // 预计算玩家ID和过滤列表(减少循环内重复调用)
-        int playerId = player.getId();
         Set<Integer> excludedItems = player.getExcludedItems();         //获取过滤列表
         boolean hasExclusions = !excludedItems.isEmpty();               //过滤列表不为空
         boolean ignoreItems = player.isEquippedPetItemIgnore();         //检查是否启用道具过滤
         boolean isEquippedMesoMagnet = player.isEquippedMesoMagnet();   //装备了宠物磁铁
         boolean isEquippedItemPouch = player.isEquippedItemPouch();     //装备了宠物捡取袋
+        boolean isEquippedPetItemScales = player.isEquippedPetItemScales();     //装备了魔法天平
 
         // 遍历所有可拾取物品
         for (MapObject item : items) {
@@ -276,23 +237,24 @@ public class itemVac extends basic {
                 boolean shouldPickup = true;
 
                 // 检查是否为玩家自己丢弃的物品(不拾取)
-                if (mapItem.isPlayerDrop()) { //玩家丢弃的一概不拾取 // && mapItem.getOwnerId() == playerId) {
+                if (mapItem.isPlayerDrop()) { //玩家丢弃的一概不拾取
                     shouldPickup = false;
                 } else if (petIndex >= 0 && player.getPet(petIndex) != null) {//如果是宠物并且已召唤
                     //判断是否装备了特定宠物装备和是否在过滤列表里
                     if (mapItem.getMeso() > 0) {
-                        shouldPickup = isEquippedMesoMagnet && (!ignoreItems || !hasExclusions || !excludedItems.contains(Integer.MAX_VALUE));
+                        shouldPickup = isEquippedMesoMagnet &&  (!ignoreItems || !hasExclusions || !excludedItems.contains(Integer.MAX_VALUE));
                     } else {
                         shouldPickup = isEquippedItemPouch && (!ignoreItems || !hasExclusions || !excludedItems.contains(mapItem.getItemId()));
                     }
                 }
-                if (shouldPickup && player.isLoggedInWorld()) { //再此判定角色是否在线
-                    player.pickupItem(item, petIndex,false);  //执行拾取
+                if (shouldPickup && player.isLoggedInWorld()) { //再次判定角色是否在线
+                    if ((mapItem.canBePickedBy(player) || isEquippedPetItemScales) && currentServerTime() - mapItem.getDropTime() > 1000) { //如果拥有拾取权 或者 装备了魔法天平 并且掉落时间超过1000ms，避免未落地先拾取
+                        player.pickupItem(item, petIndex, false);  //执行拾取
+                    }
                 }
             } catch (NullPointerException | ClassCastException ignored) {}
         }
         pickuping = false;
         pickupTime = currentServerTime();
     }
-
 }
