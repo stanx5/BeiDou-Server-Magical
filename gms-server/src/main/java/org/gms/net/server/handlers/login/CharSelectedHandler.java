@@ -75,7 +75,16 @@ public final class CharSelectedHandler extends AbstractPacketHandler {
         }
 
         if (c.hasBannedMac() || c.hasBannedHWID()) {
-            SessionCoordinator.getInstance().closeSession(c, true);
+            log.warn("客户端 {} 选择角色ID [{}] 尝试进入频道 {} ，但是IP / 设备码被封禁，无法登录{}{}。",
+                    c.getRemoteAddress(),
+                    charId,
+                    c.getChannelServer().getId(),
+                    (c.hasBannedMac() ? "，Mac：[" + macs + "] 被封禁" : ""),
+                    (c.hasBannedHWID() ? "，HWID：[" + hwid + "]，被封禁" : "×")
+            );
+            c.sendPacket(PacketCreator.serverNotice(1,"您的设备已被禁止进入游戏。\r\n如有疑问，请联系GM处理。"));
+            c.sendPacket(PacketCreator.getLoginFailed(1));//启用客户端操作
+            //SessionCoordinator.getInstance().closeSession(c, true);   //这里直接断开连接，会导致客户端弹窗与服务器失去连接，不清楚情况的话要排查很久
             return;
         }
 

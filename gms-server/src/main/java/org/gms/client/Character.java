@@ -2895,22 +2895,53 @@ public class Character extends AbstractCharacterObject {
         sendPacket(PacketCreator.modifyInventory(true, mods));
     }
 
+    /**
+     * 修复在某些未知极端情况下导致经验变成负数
+     */
     public void gainGachaExp() {
-        int expgain = 0;
-        long currentgexp = gachaExp.get();
-        if ((currentgexp + exp.get()) >= ExpTable.getExpNeededForLevel(level)) {
-            expgain += ExpTable.getExpNeededForLevel(level) - exp.get();
+        long expgain = 0; // 改为long
+        long currentgexp = gachaExp.get(); // 当前gachaExp是int，转long
+
+        long expNeeded = ExpTable.getExpNeededForLevel(level);
+        if (expNeeded > Integer.MAX_VALUE) {
+            // 如果所需经验超过int最大值，我们将其限制为int最大值，避免后续计算溢出
+            expNeeded = Integer.MAX_VALUE;
+        }
+
+        if ((currentgexp + exp.get()) >= expNeeded) {
+            expgain = expNeeded - exp.get();
 
             int nextneed = ExpTable.getExpNeededForLevel(level + 1);
+            if (nextneed < 0) {
+                // 如果下一级所需经验为负数，说明可能超过int范围，我们取int最大值
+                nextneed = Integer.MAX_VALUE;
+            }
             if (currentgexp - expgain >= nextneed) {
                 expgain += nextneed;
             }
 
-            this.gachaExp.set((int) (currentgexp - expgain));
+            long newGachaExp = currentgexp - expgain;
+            if (newGachaExp < 0) {
+                newGachaExp = 0;
+            } else if (newGachaExp > Integer.MAX_VALUE) {
+                newGachaExp = Integer.MAX_VALUE;
+            }
+            this.gachaExp.set((int) newGachaExp);
         } else {
             expgain = this.gachaExp.getAndSet(0);
         }
-        gainExp(expgain, false, true);
+
+        // 将expgain转换为int，确保在int范围内
+        int expGainInt;
+        if (expgain > Integer.MAX_VALUE) {
+            expGainInt = Integer.MAX_VALUE;
+        } else if (expgain < Integer.MIN_VALUE) {
+            expGainInt = Integer.MIN_VALUE;
+        } else {
+            expGainInt = (int) expgain;
+        }
+
+        gainExp(expGainInt, false, true);
         updateSingleStat(Stat.GACHAEXP, this.gachaExp.get());
     }
 
@@ -2931,22 +2962,59 @@ public class Character extends AbstractCharacterObject {
     }
 
     public void gainExp(int gain, int party, boolean show, boolean inChat, boolean white) {
+        // 使用long进行中间计算防止溢出
+        long longGain = gain;
+        long longParty = party;
+
         if (hasDisease(Disease.CURSE)) {
-            gain *= 0.5;
-            party *= 0.5;
+            // 安全的乘法运算
+            longGain = (long) (longGain * 0.5);
+            longParty = (long) (longParty * 0.5);
         }
 
-        if (gain < 0) {
-            gain = Integer.MAX_VALUE;   // integer overflow, heh.
+        // 修复溢出处理逻辑
+        longGain = clampExpValue(longGain);
+        longParty = clampExpValue(longParty);
+
+        // 安全的equip计算
+        long equipValue = 0;
+        if (longGain > 0 && pendantExp > 0) {
+            try {
+                equipValue = Math.multiplyExact(longGain / 10, pendantExp);
+                equipValue = Math.min(equipValue, Integer.MAX_VALUE);
+            } catch (ArithmeticException e) {
+                equipValue = Integer.MAX_VALUE;
+            }
         }
 
-        if (party < 0) {
-            party = Integer.MAX_VALUE;  // integer overflow, heh.
+        int safeGain = (int) longGain;
+        int safeParty = (int) longParty;
+        int safeEquip = (int) Math.max(equipValue, 0);
+
+        // 记录负数经验值的警告
+        if (gain < 0 || party < 0) {
+            log.warn("客户端 {} 玩家 {} 等级 {} 在地图[{}]({}) 获得经验 {} 组队经验 {} 处理后经验 {} 组队经验 {}",
+                    getClient().getRemoteAddress(),
+                    getName(), getLevel(),
+                    getMap().getMapName(),getMapId(),
+                    gain, party,
+                    longGain,longParty
+            );
         }
 
-        int equip = (int) Math.min((long) (gain / 10) * pendantExp, Integer.MAX_VALUE);
+        gainExpInternal(safeGain, safeEquip, safeParty, show, inChat, white);
+    }
 
-        gainExpInternal(gain, equip, party, show, inChat, white);
+    /**
+     * 安全限制经验值范围
+     */
+    private long clampExpValue(long expValue) {
+        if (expValue < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        } else if (expValue > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        return expValue;
     }
 
     public void loseExp(int loss, boolean show, boolean inChat) {
@@ -2973,8 +3041,10 @@ public class Character extends AbstractCharacterObject {
     }
 
     private synchronized void gainExpInternal(long gain, int equip, int party, boolean show, boolean inChat, boolean white) {   // need of method synchonization here detected thanks to MedicOP
-        long total = Math.max(gain + equip + party, -exp.get());
+        long total = gain + equip + party;
+//        if (!GameConfig.getServerBoolean("anticheat_exp_sanction")) total = Math.max(total,-exp.get());  //如果不允许经验惩罚，则不会扣到负经验。
 
+        if (total < Integer.MIN_VALUE) total = Integer.MIN_VALUE;
         if (level < getMaxLevel() && (allowExpGain || this.getEventInstance() != null)) {
             long leftover = 0;
             long nextExp = exp.get() + total;
@@ -6025,17 +6095,25 @@ public class Character extends AbstractCharacterObject {
     private List<Integer> activateCouponsEffects() {
         List<Integer> toCommitEffect = new LinkedList<>();
 
+        // 优先检查服务器是否允许使用倍率卡
+        boolean allowExpMultiplier = GameConfig.getServerBoolean("allow_exp_multiplier_card");
+        boolean allowDropMultiplier = GameConfig.getServerBoolean("allow_drop_multiplier_card");
+
         if (GameConfig.getServerBoolean("use_stack_coupon_rates")) {
             for (Entry<Integer, Integer> coupon : activeCoupons.entrySet()) {
                 int couponId = coupon.getKey();
                 int couponQty = coupon.getValue();
 
-                toCommitEffect.add(couponId);
+                // 根据是否允许使用决定是否添加效果
+                if ((ItemConstants.isExpCoupon(couponId) && allowExpMultiplier) ||
+                        (!ItemConstants.isExpCoupon(couponId) && allowDropMultiplier)) {
+                    toCommitEffect.add(couponId);
+                }
 
                 if (ItemConstants.isExpCoupon(couponId)) {
-                    setExpCouponRate(couponId, couponQty);
+                    setExpCouponRate(couponId, allowExpMultiplier ? couponQty : 0);
                 } else {
-                    setDropCouponRate(couponId, couponQty);
+                    setDropCouponRate(couponId, allowDropMultiplier ? couponQty : 0);
                 }
             }
         } else {
@@ -6045,28 +6123,29 @@ public class Character extends AbstractCharacterObject {
                 int couponId = coupon.getKey();
 
                 if (ItemConstants.isExpCoupon(couponId)) {
-                    if (maxExpRate < getCouponMultiplier(couponId)) {
+                    if (allowExpMultiplier && maxExpRate < getCouponMultiplier(couponId)) {
                         maxExpCouponId = couponId;
                         maxExpRate = getCouponMultiplier(couponId);
                     }
                 } else {
-                    if (maxDropRate < getCouponMultiplier(couponId)) {
+                    if (allowDropMultiplier && maxDropRate < getCouponMultiplier(couponId)) {
                         maxDropCouponId = couponId;
                         maxDropRate = getCouponMultiplier(couponId);
                     }
                 }
             }
 
-            if (maxExpCouponId > -1) {
+            if (maxExpCouponId > -1 && allowExpMultiplier) {
                 toCommitEffect.add(maxExpCouponId);
             }
-            if (maxDropCouponId > -1) {
+            if (maxDropCouponId > -1 && allowDropMultiplier) {
                 toCommitEffect.add(maxDropCouponId);
             }
 
-            this.expCoupon = maxExpRate;
-            this.dropCoupon = maxDropRate;
-            this.mesoCoupon = maxDropRate;
+            // 直接根据允许状态设置倍率
+            this.expCoupon = allowExpMultiplier ? maxExpRate : 1;
+            this.dropCoupon = allowDropMultiplier ? maxDropRate : 1;
+            this.mesoCoupon = allowDropMultiplier ? maxDropRate : 1;
         }
 
         this.expRate *= this.expCoupon;

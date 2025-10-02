@@ -103,18 +103,27 @@ public final class LoginPasswordHandler implements PacketHandler {
             }
         }
 
-        if (c.hasBannedIP() || c.hasBannedMac()) {
-            c.sendPacket(PacketCreator.getLoginFailed(3));
-            log.warn("客户端 {} 尝试登录账号 {} ，但是IP / MAC已被封禁",c.getRemoteAddress(),login);
+        if (c.hasBannedIP() || c.hasBannedMac() || c.hasBannedHWID()) {
+            log.warn("客户端 {} 尝试登录账号 {}，但是IP / 设备码已被封禁，无法登录{}{}{}。",
+                    c.getRemoteAddress(),
+                    login,
+                    (c.hasBannedIP() ? "，IP：[" + c.getRemoteAddress() + "] 被封禁" : ""),
+                    (c.hasBannedMac() ? "，Mac：[" + c.getMacs() + "] 被封禁" : ""),
+                    (c.hasBannedHWID() ? "，HWID：[" + hwid + "]，被封禁" : "")
+            );
+            c.sendPacket(PacketCreator.serverNotice(1,"您的设备已被禁止进入游戏。\r\n如有疑问，请联系GM处理。"));
+            c.sendPacket(PacketCreator.getLoginFailed(1));//启用客户端操作
             return;
         }
+
         Calendar tempban = c.getTempBanCalendarFromDB();
+        String banreason = c.getBanreasonFromDB();
         if (tempban != null) {
             if (tempban.getTimeInMillis() > Calendar.getInstance().getTimeInMillis()) {
                 String tmpbanstr = sdf.format(tempban.getTime());
-                c.sendPacket(PacketCreator.serverNotice(1, "您的账号已被临时封停至 " + tmpbanstr));   //发送临时封禁时间和原因
+                c.sendPacket(PacketCreator.serverNotice(1, "您的账号已被临时封停至 " + tmpbanstr + (!banreason.isEmpty() ? "\r\n\r\n【原因】\r\n" : "") + banreason));   //发送临时封禁时间和原因
                 c.sendPacket(PacketCreator.getLoginFailed(1));          //通知客户端恢复操作
-                log.warn("客户端 {} 尝试登录账号 {} ，但是被临时封停至 {}",c.getRemoteAddress(),login,tmpbanstr);
+                log.warn("客户端 {} 尝试登录账号 {} ，但是被临时封停至 {} ，原因：{}",c.getRemoteAddress(),login,tmpbanstr,banreason);
                 return;
             }
         }

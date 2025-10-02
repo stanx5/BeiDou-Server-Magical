@@ -81,21 +81,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -535,41 +525,118 @@ public class Client extends ChannelInboundHandlerAdapter {
         }
     }
 
-    public void banMacs() {
+    /**
+     * 封禁客户端IP地址
+     * @return true || false
+     */
+    public boolean banIP() {
+        String ip = getRemoteAddress();
+        try (Connection con = DatabaseConnection.getConnection()) {
+            if (ip.matches("[0-9]{1,3}\\..*")) {
+                try (PreparedStatement ps = con.prepareStatement("INSERT INTO ipbans VALUES (DEFAULT, ?, ?)")) {
+                    ps.setString(1, ip);
+                    ps.setInt(2, getAccID());
+
+                    if (ps.executeUpdate() > 0) {
+                        log.info("封禁IP地址：{}",ip);
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * 封禁客户端所有Mac地址
+     * @return 返回被封禁的Mac地址字符串列表，如：00-50-56-C0-00-08, 00-4B-F3-D2-D5-7F, 00-50-56-C0-00-01
+     */
+    public String banMacs() {
+        List<String> MacList = new ArrayList<>();
         try {
             loadMacsIfNescessary();
 
-            List<String> filtered = new LinkedList<>();
+            // 设置阈值，出现次数超过此值的MAC将被视为虚拟机MAC而不被封禁
+            final int VIRTUAL_MAC_THRESHOLD = Optional.of(GameConfig.getServerInt("ban_mac_ignore_majority")).filter(v -> (v > 2)).orElse(5);    //阈值不应该低于2，否则容易产生误判
+
+            Map<String, Integer> macOccurrences = new HashMap<>(); // 存储MAC出现次数
+
             try (Connection con = DatabaseConnection.getConnection()) {
-                try (PreparedStatement ps = con.prepareStatement("SELECT filter FROM macfilters");
-                     ResultSet rs = ps.executeQuery()) {
-                    while (rs.next()) {
-                        filtered.add(rs.getString("filter"));
+                // 使用工具类检查MAC地址，获取未匹配过滤规则的MAC地址
+                List<String> macsToCheck = MacFilterHelper.checkMacs(new ArrayList<>(macs));
+
+                // 如果存在需要检查的MAC地址，查询它们在系统中的出现次数（按HWID去重）
+                if (!macsToCheck.isEmpty()) {
+                    // 使用参数化查询构建SQL语句
+                    String occurrenceQuery =
+                            "SELECT " +
+                                    "    mac_address, " +
+                                    "    COUNT(*) AS count " +
+                                    "FROM (" +
+                                    "    SELECT DISTINCT " +
+                                    "        hwid, " +
+                                    "        TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(macs, ',', numbers.n), ',', -1)) AS mac_address " +
+                                    "    FROM " +
+                                    "        accounts " +
+                                    "    JOIN " +
+                                    "        (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6) numbers " +
+                                    "        ON CHAR_LENGTH(macs) - CHAR_LENGTH(REPLACE(macs, ',', '')) >= numbers.n - 1 " +
+                                    "    WHERE " +
+                                    "        macs IS NOT NULL " +
+                                    "        AND macs != '' " +
+                                    "        AND hwid IS NOT NULL " +
+                                    ") AS distinct_macs " +
+                                    "WHERE " +
+                                    "    mac_address IN (";
+
+                    // 添加占位符
+                    String[] placeholders = new String[macsToCheck.size()];
+                    Arrays.fill(placeholders, "?");
+                    occurrenceQuery += String.join(",", placeholders) + ") " +
+                            "GROUP BY " +
+                            "    mac_address";
+
+                    try (PreparedStatement ps = con.prepareStatement(occurrenceQuery)) {
+                        // 设置查询参数 - 使用增强for循环
+                        int index = 1;
+                        for (String mac : macsToCheck) {
+                            ps.setString(index++, mac);
+                        }
+
+                        ResultSet rs = ps.executeQuery();
+                        while (rs.next()) {
+                            macOccurrences.put(rs.getString("mac_address"), rs.getInt("count"));
+                        }
                     }
                 }
 
                 try (PreparedStatement ps = con.prepareStatement("INSERT INTO macbans (mac, aid) VALUES (?, ?)")) {
-                    for (String mac : macs) {
-                        boolean matched = false;
-                        for (String filter : filtered) {
-                            if (mac.matches(filter)) {
-                                matched = true;
-                                break;
-                            }
+                    for (String mac : macsToCheck) {
+                        // 检查MAC出现次数，超过阈值则跳过（视为虚拟机MAC）
+                        Integer occurrence = macOccurrences.get(mac);
+                        if (occurrence != null && occurrence > VIRTUAL_MAC_THRESHOLD) {
+                            MacFilterHelper.addFilter(mac);// 自动添加到过滤规则
+                            log.warn("封禁时跳过Mac地址：{}，出现次数：{}，已加入到过滤规则。",mac,occurrence);
+                            continue;
                         }
-                        if (!matched) {
-                            ps.setString(1, mac);
-                            ps.setString(2, String.valueOf(getAccID()));
-                            ps.executeUpdate();
-                        }
+
+                        // 封禁MAC地址
+                        ps.setString(1, mac);
+                        ps.setString(2, String.valueOf(getAccID()));
+                        ps.executeUpdate();
+
+                        // 添加到返回列表
+                        MacList.add(mac);
                     }
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        log.info("封禁MAC地址：[{}]",String.join(",", MacList));
+        return String.join(",", MacList);
     }
-
     public int finishLogin() {
         encoderLock.lock();
         try {
@@ -731,6 +798,36 @@ public class Client extends ChannelInboundHandlerAdapter {
         }
     }
 
+    /**
+     * 从数据库中获取账号封禁原因
+     * 查询accounts表中banreason字段的值，如不存在或为默认值则返回空字符串
+     *
+     * @return 账号封禁原因字符串，查询失败或为空时返回空字符串
+     */
+    public String getBanreasonFromDB() {
+        String banReason = "";
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement("SELECT `banreason` FROM accounts WHERE id = ?")) {
+
+            ps.setInt(1, getAccID());
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String reason = rs.getString("banreason");
+                    // 检查是否为空或默认值（根据实际情况可能需要调整默认值的判断）
+                    if (reason != null && !reason.trim().isEmpty()) {
+                        banReason = reason;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return banReason;
+    }
+
     public Calendar getTempBanCalendarFromDB() {
         final Calendar lTempban = Calendar.getInstance();
 
@@ -816,28 +913,61 @@ public class Client extends ChannelInboundHandlerAdapter {
         }
     }
 
+    /**
+     * 更新IP地址列表，自动去重并保存到数据库
+     * @param ipData 新的IP地址数据（多个IP用逗号分隔）
+     */
     public void updateIps(String ipData) {
-        ips.addAll(Arrays.asList(ipData.split(", ")));
-        StringBuilder newIpData = new StringBuilder();
-        Iterator<String> iter = ips.iterator();
-        while (iter.hasNext()) {
-            String cur = iter.next();
-            newIpData.append(cur);
-            if (iter.hasNext()) {
-                newIpData.append(", ");
-            }
+        if (ipData == null || ipData.trim().isEmpty()) {
+            return;
         }
 
+        // 批量处理新IP
+        List<String> newIps = Arrays.stream(ipData.split(","))
+                .map(String::trim)
+                .filter(ip -> !ip.isEmpty())
+                .collect(Collectors.toList());
+
+        if (newIps.isEmpty()) {
+            return;
+        }
+
+        // 获取现有IP并使用Set去重
+        Set<String> allIps = new LinkedHashSet<>(getIpsFromDB(accId));
+        int originalSize = allIps.size();
+
+        // 添加新IP
+        allIps.addAll(newIps);
+
+        // 如果没有新增IP，直接返回
+        if (allIps.size() == originalSize) {
+            return;
+        }
+
+        // 使用StringJoiner更高效地构建字符串
+        StringJoiner sj = new StringJoiner(", ");
+        allIps.forEach(sj::add);
+
+        updateIpsToDatabase(accId, sj.toString());
+    }
+    /**
+     * 将IP列表更新到数据库
+     */
+    private boolean updateIpsToDatabase(int accId, String ipData) {
+        String sql = "UPDATE accounts SET ip = ? WHERE id = ?";
+
         try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement("UPDATE accounts SET ip = ? WHERE id = ?")) {
-            ps.setString(1, newIpData.toString());
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, ipData);
             ps.setInt(2, accId);
-            ps.executeUpdate();
+
+            int affectedRows = ps.executeUpdate();
+            return affectedRows > 0;
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return false;
     }
-
     public void setAccID(int id) {
         this.accId = id;
     }
@@ -1007,7 +1137,7 @@ public class Client extends ChannelInboundHandlerAdapter {
     }
 
     public void timeoutDisconnect() {
-        disconnectInternal(false, true);
+        disconnectInternal(true, false);
     }
 
     private synchronized boolean canDisconnect() {
@@ -1019,95 +1149,108 @@ public class Client extends ChannelInboundHandlerAdapter {
         return true;
     }
 
-    private void disconnectInternal(boolean shutdown, boolean cashshop) {//once per Client instance
+    /**
+     * 断开客户端连接的内部处理方法，每个客户端实例调用一次
+     * @param {boolean} shutdown - 是否服务器关闭导致的断开
+     * @param {boolean} cashshop - 是否在现金商店中断开连接
+     */
+    private void disconnectInternal(boolean shutdown, boolean cashshop) {
+        // 检查玩家对象是否存在且处于登录状态
         if (player != null && player.isLoggedIn() && player.getClient() != null) {
+            // 获取玩家的信使ID（如果存在）
             final int messengerid = player.getMessenger() == null ? 0 : player.getMessenger().getId();
-            //final int fid = player.getFamilyId();
+            // 获取好友列表
             final BuddyList bl = player.getBuddylist();
+            // 创建信使角色对象
             final MessengerCharacter chrm = new MessengerCharacter(player, 0);
+            // 获取公会角色信息
             final GuildCharacter chrg = player.getMGC();
+            // 获取公会信息
             final Guild guild = player.getGuild();
 
-            player.cancelMagicDoor();
+            player.cancelMagicDoor();// 取消玩家的魔法门效果
 
-            final World wserv = getWorldServer();   // obviously wserv is NOT null if this player was online on it
+            // 获取世界服务器实例（此时肯定不为空）
+            final World wserv = getWorldServer();
             try {
-                // 保存在线时间
+                // 更新玩家在线时间
                 player.updateOnlineTime();
-                removePlayer(wserv, this.serverTransition);
+                removePlayer(wserv, this.serverTransition);// 从世界服务器移除玩家
 
+                // 处理非频道切换的常规断开情况
                 if (!(channel == -1 || shutdown)) {
-                    if (!cashshop) {
-                        if (!this.serverTransition) { // meaning not changing channels
-                            if (messengerid > 0) {
+                    if (!cashshop) { // 非现金商店断开
+                        if (!this.serverTransition) { // 非服务器转移状态（非频道切换）
+                            if (messengerid > 0) {// 退出信使聊天
                                 wserv.leaveMessenger(messengerid, chrm);
                             }
-                                                        /*      
-                                                        if (fid > 0) {
-                                                                final Family family = worlda.getFamily(fid);
-                                                                family.
-                                                        }
-                                                        */
 
-                            player.forfeitExpirableQuests();    //This is for those quests that you have to stay logged in for a certain amount of time
+                            player.forfeitExpirableQuests();// 放弃有时限的任务
 
+                            // 处理公会相关操作
                             if (guild != null) {
                                 final Server server = Server.getInstance();
+                                // 设置公会成员离线状态
                                 server.setGuildMemberOnline(player, false, player.getClient().getChannel());
+                                // 发送公会信息包
                                 player.sendPacket(GuildPackets.showGuildInfo(player));
                             }
-                            if (bl != null) {
+                            if (bl != null) {// 更新好友列表的离线状态
                                 wserv.loggedOff(player.getName(), player.getId(), channel, player.getBuddylist().getBuddyIds());
                             }
                         }
-                    } else {
+                    } else { // 现金商店断开
                         if (!this.serverTransition) { // if dc inside of cash shop.
-                            if (bl != null) {
+                            if (bl != null) {// 更新好友列表的离线状态
                                 wserv.loggedOff(player.getName(), player.getId(), channel, player.getBuddylist().getBuddyIds());
                             }
                         }
                     }
                 }
             } catch (final Exception e) {
-                log.error("账号卡住", e);
+                log.error("账号卡住", e); // 记录异常信息
             } finally {
-                if (!this.serverTransition) {
+                if (!this.serverTransition) {// 非服务器转移状态的清理操作
                     if (chrg != null) {
-                        chrg.setCharacter(null);
+                        chrg.setCharacter(null);// 清理公会角色引用
                     }
-                    wserv.removePlayer(player);
-                    //getChannelServer().removePlayer(player); already being done
+                    getChannelServer().removePlayer(player); //already being done
+                    wserv.removePlayer(player);// 从世界服务器移除玩家
 
-                    player.saveCooldowns();
-                    player.cancelAllDebuffs();
-                    player.saveCharToDB(true);
+                    player.saveCooldowns();// 保存冷却时间
+                    player.cancelAllDebuffs();// 取消所有debuff效果
+                    player.saveCharToDB(true);// 保存角色数据到数据库（强制保存）
 
-                    player.logOff();
+                    player.logOff();// 执行下线操作
                     if (GameConfig.getServerBoolean("instant_name_change")) {
-                        player.doPendingNameChange();
+                        player.doPendingNameChange();// 处理即时改名功能
                     }
-                    clear();
+                    clear();// 清理客户端数据
                 } else {
+                    // 服务器转移状
+                    // 态下的清理操作
                     getChannelServer().removePlayer(player);
 
                     player.saveCooldowns();
                     player.cancelAllDebuffs();
+                    // 保存角色数据到数据库（常规保存）
                     player.saveCharToDB();
                 }
             }
         }
+        // 关闭会话连接
+        SessionCoordinator.getInstance().closeSession(this, true);  //第2个参数改为true才能让客户端退出到登录界面
 
-        SessionCoordinator.getInstance().closeSession(this, false);
-
+        // 更新登录状态
         if (!serverTransition && isLoggedIn()) {
             updateLoginState(Client.LOGIN_NOTLOGGEDIN);
-
             clear();
         } else {
+            // 检查服务器是否正在转移该角色
             if (!Server.getInstance().hasCharacteridInTransition(this)) {
                 updateLoginState(Client.LOGIN_NOTLOGGEDIN);
             }
-
+            // 清理引擎引用
             engines = null; // thanks Tochi for pointing out a NPE here
         }
     }
@@ -1225,6 +1368,35 @@ public class Client extends ChannelInboundHandlerAdapter {
         return Collections.unmodifiableSet(ips);
     }
 
+    /**
+     * 从数据库读取指定账号的IP列表
+     * @param accId 账号ID
+     * @return IP地址列表，如果记录不存在返回空列表
+     */
+    public List<String> getIpsFromDB(int accId) {
+        String sql = "SELECT ip FROM accounts WHERE id = ?";
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, accId);
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                String ipData = rs.getString("ip");
+                if (ipData != null && !ipData.trim().isEmpty()) {
+                    // 使用更高效的分割方式
+                    return Arrays.stream(ipData.split(","))
+                            .map(String::trim)
+                            .filter(ip -> !ip.isEmpty())
+                            .collect(Collectors.toList());
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return new ArrayList<>();
+    }
     public int getGMLevel() {
         return gmlevel;
     }
