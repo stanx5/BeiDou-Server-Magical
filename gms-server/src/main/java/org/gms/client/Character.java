@@ -2411,7 +2411,7 @@ public class Character extends AbstractCharacterObject {
                 sb.append(String.format("智能拾取半径：%.0f 码\r\n", itemVac.getRadius() / 30));
                 sb.append(String.format("智能拾取间隔：%.1f 秒\r\n", intervalSeconds));
                 sb.append("════════════════\r\n");
-                sb.append("可从商城购买宠物装备激活特定功能\r\n");
+                sb.append("使用宠物装备激活特定功能\r\n");
                 showHint(sb.toString(), 200); // 显示提示
             }
         } catch (Exception ex) {
@@ -2602,6 +2602,37 @@ public class Character extends AbstractCharacterObject {
         }
     }
 
+    public void giveDebuff(final Disease disease, MobSkill skill, int time) {
+        if (!hasDisease(disease) && getDiseasesSize() < 2) {
+            if (!(disease == Disease.SEDUCE || disease == Disease.STUN)) {
+                if (hasActiveBuff(Bishop.HOLY_SHIELD)) {
+                    return;
+                }
+            }
+
+            chrLock.lock();
+            try {
+                long curTime = Server.getInstance().getCurrentTime();
+                diseaseExpires.put(disease, curTime + MILLISECONDS.toMillis(time));
+                diseases.put(disease, new Pair<>(new DiseaseValueHolder(curTime, skill.getDuration()), skill));
+            } finally {
+                chrLock.unlock();
+            }
+
+            if (disease == Disease.SEDUCE && chair.get() < 0) {
+                sitChair(-1);
+            }
+
+            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, Integer.valueOf(skill.getX())));
+            sendPacket(PacketCreator.giveDebuff(debuff, skill));
+
+            if (disease != Disease.SLOW) {
+                map.broadcastMessage(this, PacketCreator.giveForeignDebuff(id, debuff, skill), false);
+            } else {
+                map.broadcastMessage(this, PacketCreator.giveForeignSlowDebuff(id, debuff, skill), false);
+            }
+        }
+    }
     public void giveDebuff(final Disease disease, MobSkill skill) {
         if (!hasDisease(disease) && getDiseasesSize() < 2) {
             if (!(disease == Disease.SEDUCE || disease == Disease.STUN)) {
