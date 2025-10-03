@@ -3254,10 +3254,16 @@ public class PacketCreator {
 
         Character[] visitors = shop.getVisitors();
         for (int i = 0; i < 3; i++) {
-            if (visitors[i] != null) {
-                p.writeByte(i + 1);
-                addCharLook(p, visitors[i], false);
-                p.writeString(visitors[i].getName());
+            Character visitor = visitors[i];
+            if (visitor != null) {
+                //目前似乎除了店主，其他人没有远程访问雇佣商店的渠道，因此判定访客是否均处于同个频道同个地图ID再加入显示。
+                if (visitor.getClient().getChannel() == shop.getChannel() && visitor.getMapId() == shop.getMapId()) {
+                    p.writeByte(i + 1);
+                    addCharLook(p, visitor, false);
+                    p.writeString(visitor.getName());
+                } else {
+                    shop.removeVisitor(visitor);  //不在同个频道或者不同地图ID则移除访客缓存
+                }
             }
         }
 
@@ -5151,10 +5157,16 @@ public class PacketCreator {
 
         Character[] visitors = hm.getVisitorCharacters();
         for (int i = 0; i < 3; i++) {
-            if (visitors[i] != null) {
-                p.writeByte(i + 1);
-                addCharLook(p, visitors[i], false);
-                p.writeString(visitors[i].getName());
+            Character visitor = visitors[i];
+            if (visitor != null) {
+                //目前似乎除了店主，其他人没有远程访问雇佣商店的渠道，因此判定访客是否均处于同个频道同个地图ID再加入显示。
+                if (visitor.getClient().getChannel() == chr.getClient().getChannel() && visitor.getMapId() == chr.getMapId()) {
+                    p.writeByte(i + 1);
+                    addCharLook(p, visitor, false);
+                    p.writeString(visitor.getName());
+                } else {
+                    hm.removeVisitor(visitor);  //不在同个地图ID则移除访客缓存
+                }
             }
         }
         p.writeByte(-1);
