@@ -125,8 +125,8 @@ public class CommandsExecutor {
             params = new String[]{};
         }
 
-        command.execute(client, params);
         log.info(I18nUtil.getLogMessage("CommandsExecutor.handleInternal.info1"), client.getPlayer().getName(), command.getClass().getSimpleName(),message);
+        command.execute(client, params);
     }
 
     private void addCommandInfo(String name, Class<? extends Command> commandClass) {
