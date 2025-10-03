@@ -303,6 +303,16 @@ public class Trade {
             local.fetchExchangedItems();
             partner.fetchExchangedItems();
 
+            // 新增：检查交易物品的标志位限制
+            List<Item> localRestrictedItems = checkTradeRestrictedItems(local);
+            List<Item> partnerRestrictedItems = checkTradeRestrictedItems(partner);
+
+            if (!localRestrictedItems.isEmpty() || !partnerRestrictedItems.isEmpty()) {
+                // 有限制物品，取消交易并通知双方
+                cancelTradeDueToRestrictedItems(local, partner, localRestrictedItems, partnerRestrictedItems);
+                return;
+            }
+
             if (!local.fitsMeso()) {
                 cancelTrade(local.getChr(), TradeResult.UNSUCCESSFUL);
                 chr.message(I18nUtil.getMessage("Trade.message.Mesos.Player"));
@@ -372,6 +382,72 @@ public class Trade {
             partner.getChr().setTrade(null);
             chr.setTrade(null);
         }
+    }
+
+    /**
+     * 检查交易物品是否包含限制交易的标志位
+     * @param trade 交易对象
+     * @return 包含限制标志位的物品列表
+     */
+    private static List<Item> checkTradeRestrictedItems(Trade trade) {
+        List<Item> restrictedItems = new ArrayList<>();
+        ItemInformationProvider ii = ItemInformationProvider.getInstance();
+
+        // 获取交易中的所有物品
+        for (Item item : trade.getItems()) {
+            // 额外检查：系统判定不可交易的物品（使用Item类的isUntradeable方法）
+            if (item.isUntradeable()) {
+                restrictedItems.add(item);
+            }
+        }
+
+        return restrictedItems;
+    }
+
+    /**
+     * 因限制物品取消交易并通知双方
+     * @param local 本地交易
+     * @param partner 对方交易
+     * @param localRestricted 本地限制物品
+     * @param partnerRestricted 对方限制物品
+     */
+    private static void cancelTradeDueToRestrictedItems(Trade local, Trade partner,
+                                                        List<Item> localRestricted,
+                                                        List<Item> partnerRestricted) {
+        ItemInformationProvider ii = ItemInformationProvider.getInstance();
+
+        // 构建限制物品名称列表
+        StringBuilder localItemNames = new StringBuilder();
+        StringBuilder partnerItemNames = new StringBuilder();
+
+        for (Item item : localRestricted) {
+            if (localItemNames.length() > 0) localItemNames.append(", ");
+            localItemNames.append(ii.getName(item.getItemId()));
+            localItemNames.append(" × ");
+            localItemNames.append(item.getQuantity());
+        }
+
+        for (Item item : partnerRestricted) {
+            if (partnerItemNames.length() > 0) partnerItemNames.append(", ");
+            partnerItemNames.append(ii.getName(item.getItemId()));
+            partnerItemNames.append(" × ");
+            partnerItemNames.append(item.getQuantity());
+        }
+
+        // 发送详细的通知消息给双方
+        if (!localRestricted.isEmpty()) {
+            local.getChr().dropMessage(5,I18nUtil.getMessage("Trade.message.RestrictedItems.Player", localItemNames.toString()));
+            partner.getChr().dropMessage(5,I18nUtil.getMessage("Trade.message.RestrictedItems.Partner", local.getChr().getName(), localItemNames.toString()));
+        }
+
+        if (!partnerRestricted.isEmpty()) {
+            partner.getChr().dropMessage(5, I18nUtil.getMessage("Trade.message.RestrictedItems.Player", partnerItemNames.toString()));
+            local.getChr().dropMessage(5,I18nUtil.getMessage("Trade.message.RestrictedItems.Partner", partner.getChr().getName(), partnerItemNames.toString()));
+        }
+
+        log.warn("[交易] 玩家 {} 尝试与 {} 交易不可交易的物品，已被取消，物品列表：{}",local.getChr(),partner.getChr(),localItemNames.toString());
+        // 取消交易
+        cancelTrade(local.getChr(), TradeResult.UNSUCCESSFUL);
     }
 
     private static void cancelTradeInternal(Character chr, byte selfResult, byte partnerResult) {
@@ -579,7 +655,7 @@ public class Trade {
     }
 
     private static String getFormattedItemLogMessage(List<Item> items) {
-        StringJoiner sj = new StringJoiner(", ", "[", "]");
+        StringJoiner sj = new StringJoiner(", ", "[" + (items.size() > 0 ? "\n" : ""), "]");
         ItemInformationProvider ii = ItemInformationProvider.getInstance();
         for (Item item : items) {
             String itemName = ii.getName(item.getItemId());
