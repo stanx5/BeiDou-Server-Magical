@@ -38,25 +38,53 @@ public class RatesCommand extends Command {
     @Override
     public void execute(Client c, String[] params) {
         Character player = c.getPlayer();
-        float exp_buff = 1;
-        // travel rates 不在这里进行展示 因为它是全局的 与角色无关
+        player.updateCouponRates();//刷新倍率
+
+        // 提前计算常用值和获取配置
+        boolean useQuestRate = GameConfig.getServerBoolean("use_quest_rate");
+        boolean allowExpCard = GameConfig.getServerBoolean("allow_exp_multiplier_card");
+        boolean allowDropCard = GameConfig.getServerBoolean("allow_drop_multiplier_card");
+
+        // 使用StringBuilder替代字符串拼接
+        StringBuilder showMsg = new StringBuilder(300); // 预估初始容量
+        showMsg.append("#e").append(I18nUtil.getMessage("RatesCommand.message2")).append("#n\r\n\r\n");
+
+        // 计算经验倍率
+        float exp_buff = player.getBuffedValue(BuffStat.EXP_BUFF) != null ? 2.0f : 1.0f;
         String noviceMsg = player.hasNoviceExpRate() ? I18nUtil.getMessage("ShowRatesCommand.message7") : "";
-        String showMsg_ = "#e" + I18nUtil.getMessage("RatesCommand.message2") + "#n\r\n\r\n";
-        Integer expBuff = player.getBuffedValue(BuffStat.EXP_BUFF);
-        if (expBuff != null) {
-            exp_buff = 2;
-        }
-        showMsg_ += I18nUtil.getMessage("ShowRatesCommand.message6") + "#e#b" + player.getExpRate() * exp_buff * player.getFamilyExp() + "x#k#n " + noviceMsg + "\r\n";
-        if (player.getMobExpRate() > 1) {
-            showMsg_ += I18nUtil.getMessage("RatesCommand.message4") + "#e#b" + Math.round(player.getMobExpRate() * 100f) / 100f + "x#k#n" + "\r\n";
-        }
-        showMsg_ += I18nUtil.getMessage("ShowRatesCommand.message12") + "#e#b" + player.getMesoRate() + "x#k#n" + "\r\n";
-        showMsg_ += I18nUtil.getMessage("ShowRatesCommand.message17") + "#e#b" + player.getDropRate() *  player.getFamilyDrop() + "x#k#n" + "\r\n";
-        showMsg_ += I18nUtil.getMessage("ShowRatesCommand.message22") + "#e#b" + player.getBossDropRate() + "x#k#n" + "\r\n";
-        if (GameConfig.getServerBoolean("use_quest_rate")) {
-            showMsg_ += I18nUtil.getMessage("RatesCommand.message3") + "#e#b" + c.getWorldServer().getQuestRate() + "x#k#n" + "\r\n";
+        float expRate = player.getExpRate() * exp_buff * player.getFamilyExp();
+        showMsg.append(I18nUtil.getMessage("ShowRatesCommand.message6"))
+                .append("#e#b").append(expRate).append("x#k#n ").append(noviceMsg).append("\r\n");
+
+        // 怪物经验倍率（条件显示）
+        float mobExpRate = player.getMobExpRate();
+        if (mobExpRate > 1) {
+            showMsg.append(I18nUtil.getMessage("RatesCommand.message4"))
+                    .append("#e#b").append(Math.round(mobExpRate * 100f) / 100f).append("x#k#n\r\n");
         }
 
-        player.showHint(showMsg_, 300);
+        // 直接追加其他倍率信息
+        showMsg.append(I18nUtil.getMessage("ShowRatesCommand.message12"))
+                .append("#e#b").append(player.getMesoRate()).append("x#k#n\r\n")
+                .append(I18nUtil.getMessage("ShowRatesCommand.message17"))
+                .append("#e#b").append(player.getDropRate() * player.getFamilyDrop()).append("x#k#n\r\n")
+                .append(I18nUtil.getMessage("ShowRatesCommand.message22"))
+                .append("#e#b").append(player.getBossDropRate()).append("x#k#n\r\n");
+
+        // 任务倍率（条件显示）
+        if (useQuestRate) {
+            showMsg.append(I18nUtil.getMessage("RatesCommand.message3"))
+                    .append("#e#b").append(c.getWorldServer().getQuestRate()).append("x#k#n\r\n");
+        }
+
+        // 倍率卡状态（条件显示）
+        if (!allowExpCard) {
+            showMsg.append("经验倍率卡：#e#r已禁用#k#n\r\n");
+        }
+        if (!allowDropCard) {
+            showMsg.append("掉落倍率卡：#e#r已禁用#k#n\r\n");
+        }
+
+        player.showHint(showMsg.toString(), 150);
     }
 }
