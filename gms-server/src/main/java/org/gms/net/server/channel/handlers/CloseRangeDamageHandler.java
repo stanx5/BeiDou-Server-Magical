@@ -21,12 +21,8 @@
 */
 package org.gms.net.server.channel.handlers;
 
-import org.gms.client.BuffStat;
+import org.gms.client.*;
 import org.gms.client.Character;
-import org.gms.client.Client;
-import org.gms.client.Job;
-import org.gms.client.Skill;
-import org.gms.client.SkillFactory;
 import org.gms.config.GameConfig;
 import org.gms.constants.game.GameConstants;
 import org.gms.constants.id.MapId;
@@ -53,14 +49,11 @@ public final class CloseRangeDamageHandler extends AbstractDealDamageHandler {
     @Override
     public final void handlePacket(InPacket p, Client c) {
         Character chr = c.getPlayer();
-        
-        /*long timeElapsed = currentServerTime() - chr.getAutobanManager().getLastSpam(8);
-        if(timeElapsed < 300) {
-                AutobanFactory.FAST_ATTACK.alert(chr, "Time: " + timeElapsed);
-        }
-        chr.getAutobanManager().spam(8);*/
 
         AttackInfo attack = parseDamage(p, chr, false, false);
+
+        if (attack == null) return; //为空则作废此次攻击
+
         if (chr.getBuffEffect(BuffStat.MORPH) != null) {
             if (chr.getBuffEffect(BuffStat.MORPH).isMorphWithoutAttack()) {
                 // How are they attacking when the client won't let them?
@@ -170,7 +163,7 @@ public final class CloseRangeDamageHandler extends AbstractDealDamageHandler {
 
             chr.setDojoEnergy(0);
             c.sendPacket(PacketCreator.getEnergy("energy", chr.getDojoEnergy()));
-            c.sendPacket(PacketCreator.serverNotice(5, "As you used the secret skill, your energy bar has been reset."));
+            c.sendPacket(PacketCreator.serverNotice(5, "由于你使用了秘技，能量条已重置。"));
         } else if (attack.skill > 0) {
             Skill skill = SkillFactory.getSkill(attack.skill);
             StatEffect effect_ = skill.getEffect(chr.getSkillLevel(skill));

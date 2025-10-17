@@ -539,6 +539,7 @@ public class Client extends ChannelInboundHandlerAdapter {
 
                     if (ps.executeUpdate() > 0) {
                         log.info("封禁IP地址：{}",ip);
+                        return true;
                     }
                 }
             }
@@ -637,6 +638,80 @@ public class Client extends ChannelInboundHandlerAdapter {
         log.info("封禁MAC地址：[{}]",String.join(",", MacList));
         return String.join(",", MacList);
     }
+
+    /**
+     * 获取包含指定字符串的活跃记录数量（同时对ip、macs、hwid三个字段进行模糊查询）
+     * @param searchValue 要搜索的字符串
+     * @return 匹配的记录数量
+     */
+    public int getActiveRecordCount(String searchValue) {
+        int count = 0;
+
+        // 如果搜索值为null或空，直接返回0
+        if (searchValue == null || searchValue.isEmpty()) {
+            return 0;
+        }
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT COUNT(*) as record_count FROM accounts WHERE loggedin > 0 " +
+                             "AND (ip LIKE ? OR macs LIKE ? OR hwid LIKE ?)")) {
+
+            // 对三个字段都使用相同的模糊匹配模式
+            String searchPattern = "%" + searchValue + "%";
+            ps.setString(1, searchPattern);
+            ps.setString(2, searchPattern);
+            ps.setString(3, searchPattern);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    count = rs.getInt("record_count");
+                }
+            }
+        } catch (SQLException e) {
+            log.error("getActiveRecordCount 出错 ", e);
+        }
+
+        return count;
+    }
+
+    /**
+     * 获取今天通过指定设备登录的账号数量
+     * @param searchValue 要搜索的字符串
+     * @return 今天登录的账号数量
+     */
+    public int getTodayLoginCount(String searchValue) {
+        int count = 0;
+
+        // 如果搜索值为null或空，直接返回0
+        if (searchValue == null || searchValue.isEmpty()) {
+            return 0;
+        }
+
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT COUNT(*) as record_count FROM accounts WHERE loggedin > 0 " +
+                             "AND (ip LIKE ? OR macs LIKE ? OR hwid LIKE ?) " +
+                             "AND DATE(lastlogin) = CURDATE()")) {
+
+            // 对三个字段都使用相同的模糊匹配模式
+            String searchPattern = "%" + searchValue + "%";
+            ps.setString(1, searchPattern);
+            ps.setString(2, searchPattern);
+            ps.setString(3, searchPattern);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    count = rs.getInt("record_count");
+                }
+            }
+        } catch (SQLException e) {
+            log.error("getTodayLoginCount 出错 ", e);
+        }
+
+        return count;
+    }
+
     public int finishLogin() {
         encoderLock.lock();
         try {

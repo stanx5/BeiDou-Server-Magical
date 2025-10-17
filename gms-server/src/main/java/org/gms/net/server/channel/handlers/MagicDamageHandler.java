@@ -44,13 +44,9 @@ public final class MagicDamageHandler extends AbstractDealDamageHandler {
     public final void handlePacket(InPacket p, Client c) {
         Character chr = c.getPlayer();
 
-		/*long timeElapsed = currentServerTime() - chr.getAutobanManager().getLastSpam(8);
-		if(timeElapsed < 300) {
-			AutobanFactory.FAST_ATTACK.alert(chr, "Time: " + timeElapsed);
-		}
-		chr.getAutobanManager().spam(8);*/
-
         AttackInfo attack = parseDamage(p, chr, false, true);
+
+        if (attack == null) return; //为空则作废此次攻击
 
         if (chr.getBuffEffect(BuffStat.MORPH) != null) {
             if (chr.getBuffEffect(BuffStat.MORPH).isMorphWithoutAttack()) {

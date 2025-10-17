@@ -60,18 +60,14 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
     @Override
     public void handlePacket(InPacket p, Client c) {
         Character chr = c.getPlayer();
-        
-        /*long timeElapsed = currentServerTime() - chr.getAutobanManager().getLastSpam(8);
-        if(timeElapsed < 300) {
-            AutobanFactory.FAST_ATTACK.alert(chr, "Time: " + timeElapsed);
-        }
-        chr.getAutobanManager().spam(8);*/
 
         AttackInfo attack = parseDamage(p, chr, true, false);
 
+        if (attack == null) return; //为空则作废此次攻击
+
         if (chr.getBuffEffect(BuffStat.MORPH) != null) {
             if (chr.getBuffEffect(BuffStat.MORPH).isMorphWithoutAttack()) {
-                // How are they attacking when the client won't let them?
+                // 当客户端不允许攻击时，他们是如何进行攻击的？
                 chr.getClient().disconnect(false, false);
                 return;
             }
@@ -154,7 +150,7 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
                         supplement = (short) -ItemInformationProvider.getInstance().getSlotMax(c,id);  //设定补充到限制的最高数值
                     }
 
-                    if (item.getQuantity() >= bulletCount) { //Fixes the bug where you can't use your last arrow.
+                    if (item.getQuantity() >= bulletCount) { //修复无法使用最后一支箭的bug
                         if (type == WeaponType.CLAW && ItemConstants.isThrowingStar(id) && weapon.getItemId() != ItemId.MAGICAL_MITTEN) {
                             //这段判断不知道干啥用的，里面又没有内容，看样子是判定 物品ID = 月牙镖 或 平衡之怒 且 等级小于70，或 月牙镖 且 等级小于50
                             if (((id == ItemId.HWABI_THROWING_STARS || id == ItemId.BALANCED_FURY) && chr.getLevel() < 70) || (id == ItemId.CRYSTAL_ILBI_THROWING_STARS && chr.getLevel() < 50)) {
@@ -192,7 +188,7 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
                         bulletConsume = supplement;     //将消耗飞镖设为补充飞镖
                     }
                     if (slot < 0) {
-                        log.warn("<ERROR> Projectile to use was unable to be found.");
+                        log.warn("<错误> 无法找到要使用的弹药。玩家: {} 正在使用技能: {} ID: {}", chr.getName(), attack.skill, projectile);
                     } else {
                         InventoryManipulator.removeFromSlot(c, InventoryType.USE, slot, bulletConsume, false, true);    //减去消耗品指定栏位物品数量
                     }
@@ -200,7 +196,7 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
             }
 
             if (projectile != 0 || soulArrow || attack.skill == 11101004 || attack.skill == 15111007 || attack.skill == 14101006 || attack.skill == 4111004 || attack.skill == 13101005) {
-                int visProjectile = projectile; //visible projectile sent to players
+                int visProjectile = projectile; //向玩家显示的投射物
                 if (ItemConstants.isThrowingStar(projectile)) {
                     Inventory cash = chr.getInventory(InventoryType.CASH);
                     for (int i = 1; i <= cash.getSlotLimit(); i++) { // impose order...

@@ -127,6 +127,28 @@ public final class LoginPasswordHandler implements PacketHandler {
                 return;
             }
         }
+        int loginCountMax = GameConfig.getServerInt("login_client_limit");
+        if (loginCountMax > 0) {
+            int loginCount = Math.max(c.getActiveRecordCount(c.getRemoteAddress()),c.getActiveRecordCount(hwid.hwid()));
+            if (loginCount >= loginCountMax || loginCount >= loginCountMax) {
+                c.sendPacket(PacketCreator.serverNotice(1,"您的设备当前已登录账号数已超过服务端允许，无法继续登录账号。"));
+                c.sendPacket(PacketCreator.getLoginFailed(1));          //通知客户端恢复操作
+                log.warn("客户端 {} 尝试登录账号 {} ，已登录数量 {} ，最大允许登录数量 {} ，已限制登录。",c.getRemoteAddress(),login,loginCount,loginCountMax);
+                return;
+            }
+        }
+
+        loginCountMax = GameConfig.getServerInt("login_client_limit_today");
+        if (loginCountMax > 0) {
+            int loginCount = Math.max(c.getTodayLoginCount(c.getRemoteAddress()),c.getTodayLoginCount(hwid.hwid()));
+            if (loginCount >= loginCountMax || loginCount >= loginCountMax) {
+                c.sendPacket(PacketCreator.serverNotice(1,"您的设备今天累计登录账号数已超过服务端允许，无法继续登录账号。"));
+                c.sendPacket(PacketCreator.getLoginFailed(1));          //通知客户端恢复操作
+                log.warn("客户端 {} 尝试登录账号 {} ，已乐基登录数量 {} ，最大允许登录数量 {} ，已限制登录。",c.getRemoteAddress(),login,loginCount,loginCountMax);
+                return;
+            }
+        }
+
         if (loginok == 3) {
             c.sendPacket(PacketCreator.getPermBan(c.getGReason()));//crashes but idc :D
             log.warn("客户端 {} 尝试登录账号 {} ，但是账号已被封禁",c.getRemoteAddress(),login);
