@@ -267,11 +267,13 @@ public final class PlayerInteractionHandler extends AbstractPacketHandler {
                     } else if (ItemConstants.isHiredMerchant(itemId)) {
                         HiredMerchant merchant = new HiredMerchant(chr, desc, itemId);
                         boolean merchantAdded = chr.getClient().getChannelServer().addHiredMerchant(chr.getId(), merchant);
-                        if (merchantAdded) {
+                        if (merchantAdded || !chr.hasMerchant()) {
                             chr.setHiredMerchant(merchant);
                             c.getWorldServer().registerHiredMerchant(merchant);
                             chr.sendPacket(PacketCreator.getHiredMerchant(chr, merchant, true));
 //                            System.out.println("new shop creation.");
+                        } else {
+                            chr.dropMessage(1, "您已经有一家商店开业了.");
                         }
                     }
                 }
