@@ -3119,22 +3119,21 @@ public class Character extends AbstractCharacterObject {
     private synchronized void gainExpInternal(long gain, int equip, int party, boolean show, boolean inChat, boolean white) {   // need of method synchonization here detected thanks to MedicOP
         long total = gain + equip + party;
 //        if (!GameConfig.getServerBoolean("anticheat_exp_sanction")) total = Math.max(total,-exp.get());  //如果不允许经验惩罚，则不会扣到负经验。
-
         if (total < Integer.MIN_VALUE) total = Integer.MIN_VALUE;
-        if (level < getMaxLevel() && (allowExpGain || this.getEventInstance() != null)) {
+        if (level <= getMaxLevel() && (allowExpGain || this.getEventInstance() != null)) {
             long leftover = 0;
             long nextExp = exp.get() + total;
 
             if (nextExp > (long) Integer.MAX_VALUE) {
                 total = Integer.MAX_VALUE - exp.get();
-                leftover = nextExp - Integer.MAX_VALUE;
+                if (level != getMaxLevel()) leftover = nextExp - Integer.MAX_VALUE;
             }
             updateSingleStat(Stat.EXP, exp.addAndGet((int) total));
             totalExpGained += total;
             if (show) {
                 announceExpGain(gain, equip, party, inChat, white);
             }
-            while (exp.get() >= ExpTable.getExpNeededForLevel(level)) {
+            while (exp.get() >= ExpTable.getExpNeededForLevel(level) && level != getMaxLevel()) {
                 levelUp(true);
 
                 String msg = I18nUtil.getMessage("Character.levelUp.globalNotice", getName(), getMap().getMapName(), getLevel());
@@ -3149,9 +3148,13 @@ public class Character extends AbstractCharacterObject {
                     log.info(msg);
                 }
                 if (level == getMaxLevel()) {
-                    setExp(0);
-                    updateSingleStat(Stat.EXP, 0);
-                    break;
+                    if (exp.get() < (ExpTable.getExpNeededForLevel(level) * 0.99)) {
+                        break;
+                    } else {
+                        setExp(0);
+                        updateSingleStat(Stat.EXP, 0);
+                        break;
+                    }
                 }
                 if (GameConfig.getServerBoolean("use_level_up_protect")) break;
             }
