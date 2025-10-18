@@ -108,10 +108,10 @@ import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.*;
 
+@Getter
 public class Character extends AbstractCharacterObject {
     private static final Logger log = LoggerFactory.getLogger(Character.class);
 
-    @Getter
     @Setter
     private int world;
     @Getter
@@ -888,7 +888,7 @@ public class Character extends AbstractCharacterObject {
                 if (!login) {
                     getMap().broadcastNONGMMessage(this, PacketCreator.removePlayerFromMap(getId()), false);
                 }
-                List<Pair<BuffStat, Integer>> ldsstat = Collections.singletonList(new Pair<BuffStat, Integer>(BuffStat.DARKSIGHT, 0));
+                List<Pair<BuffStat, Integer>> ldsstat = Collections.singletonList(new Pair<>(BuffStat.DARKSIGHT, 0));
                 getMap().broadcastGMMessage(this, PacketCreator.giveForeignBuff(id, ldsstat), false);
                 this.releaseControlledMonsters();
             }
@@ -1278,7 +1278,7 @@ public class Character extends AbstractCharacterObject {
         return warpMap;
     }
 
-    // for use ONLY inside OnUserEnter map scripts that requires a player to change map while still moving between maps.
+    // 仅用于OnUserEnter地图脚本中，当玩家在切换地图过程中需要改变地图时使用。
     public void warpAhead(int map) {
         newWarpMap = map;
     }
@@ -1692,9 +1692,9 @@ public class Character extends AbstractCharacterObject {
 
     /**
      * 玩家更改地图 内部方法
-     * @param to
-     * @param pos
-     * @param warpPacket
+     * @param to 目标地图对象
+     * @param pos 目标位置坐标
+     * @param warpPacket 传送数据包
      */
     private void changeMapInternal(final MapleMap to, final Point pos, Packet warpPacket) {
         if (!canWarpMap) {
@@ -2574,7 +2574,7 @@ public class Character extends AbstractCharacterObject {
         for (Entry<Disease, Pair<DiseaseValueHolder, MobSkill>> di : chrDiseases) {
             Disease disease = di.getKey();
             MobSkill skill = di.getValue().getRight();
-            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, Integer.valueOf(skill.getX())));
+            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, skill.getX()));
 
             if (disease != Disease.SLOW) {
                 map.broadcastMessage(PacketCreator.giveForeignDebuff(id, debuff, skill));
@@ -2591,7 +2591,7 @@ public class Character extends AbstractCharacterObject {
             for (Entry<Disease, Pair<Long, MobSkill>> di : chr.getAllDiseases().entrySet()) {
                 Disease disease = di.getKey();
                 MobSkill skill = di.getValue().getRight();
-                final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, Integer.valueOf(skill.getX())));
+                final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, skill.getX()));
 
                 if (disease != Disease.SLOW) {
                     this.sendPacket(PacketCreator.giveForeignDebuff(cid, debuff, skill));
@@ -2623,7 +2623,7 @@ public class Character extends AbstractCharacterObject {
                 sitChair(-1);
             }
 
-            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, Integer.valueOf(skill.getX())));
+            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, skill.getX()));
             sendPacket(PacketCreator.giveDebuff(debuff, skill));
 
             if (disease != Disease.SLOW) {
@@ -2654,7 +2654,7 @@ public class Character extends AbstractCharacterObject {
                 sitChair(-1);
             }
 
-            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, Integer.valueOf(skill.getX())));
+            final List<Pair<Disease, Integer>> debuff = Collections.singletonList(new Pair<>(disease, skill.getX()));
             sendPacket(PacketCreator.giveDebuff(debuff, skill));
 
             if (disease != Disease.SLOW) {
@@ -2755,7 +2755,7 @@ public class Character extends AbstractCharacterObject {
     /**
      * 给玩家角色发送消息
      * @param type  0=聊天窗[note]蓝色消息；1=中间弹窗；2=？；3=？；4=？；5=聊天窗红色消息；6=聊天窗黄色消息
-     * @param message
+     * @param message 消息内容
      */
     public void dropMessage(int type, String message) {
         sendPacket(PacketCreator.serverNotice(type, message));
@@ -2891,8 +2891,7 @@ public class Character extends AbstractCharacterObject {
 
                 long expiration, currenttime = System.currentTimeMillis();
                 Set<Skill> keys = getSkills().keySet();
-                for (Iterator<Skill> i = keys.iterator(); i.hasNext(); ) {
-                    Skill key = i.next();
+                for (Skill key : keys) {
                     SkillEntry skill = getSkills().get(key);
                     if (skill.expiration != -1 && skill.expiration < currenttime) {
                         changeSkillLevel(key, (byte) -1, 0, -1);
@@ -3793,7 +3792,7 @@ public class Character extends AbstractCharacterObject {
                 }
             }
 
-            propagateBuffEffectUpdates(new LinkedHashMap<Integer, Pair<StatEffect, Long>>(), retrievedStats, removedStats);
+            propagateBuffEffectUpdates(new LinkedHashMap<>(), retrievedStats, removedStats);
         } finally {
             chrLock.unlock();
             effLock.unlock();
@@ -4592,7 +4591,7 @@ public class Character extends AbstractCharacterObject {
             if (petExclude != null) {
                 petExclude.clear();
             } else {
-                excluded.put(petId, new LinkedHashSet<Integer>());
+                excluded.put(petId, new LinkedHashSet<>());
             }
         } finally {
             chrLock.unlock();
@@ -6814,13 +6813,13 @@ public class Character extends AbstractCharacterObject {
             usedSafetyCharm = true;
             message(I18nUtil.getMessage("Character.useItem.message1"));  //使用安全护符，不扣经验
         } else if (getJob() != Job.BEGINNER) { //Hmm...
-            if (!FieldLimit.NO_EXP_DECREASE.check(getMap().getFieldLimit())) {  // thanks Conrad for noticing missing FieldLimit check
+            if (!FieldLimit.NO_EXP_DECREASE.check(getMap().getFieldLimit())) {  // 感谢Conrad指出缺少的FieldLimit检查
                 int XPdummy = ExpTable.getExpNeededForLevel(getLevel());
 
-                if (getMap().isTown()) {    // thanks MindLove, SIayerMonkey, HaItsNotOver for noting players only lose 1% on town maps
+                if (getMap().isTown()) {    // 感谢MindLove, SIayerMonkey, HaItsNotOver指出玩家在城镇地图上只损失1%经验
                     XPdummy /= 100;
                 } else {
-                    if (getLuk() < 50) {    // thanks Taiketo, Quit, Fishanelli for noting player EXP loss are fixed, 50-LUK threshold
+                    if (getLuk() < 50) {    // 感谢Taiketo, Quit, Fishanelli指出玩家经验损失是固定的，50幸运值为阈值
                         XPdummy /= 10;
                     } else {
                         XPdummy /= 20;
@@ -8223,8 +8222,8 @@ public class Character extends AbstractCharacterObject {
                 autoHpAlert = hpMpAlertService.getHpAlertPer(id);
                 autoMpAlert = hpMpAlertService.getMpAlertPer(id);
             } else {
-                autoHpAlert = (float) GameConfig.getServerFloat("pet_auto_hp_ratio");
-                autoMpAlert = (float) GameConfig.getServerFloat("pet_auto_mp_ratio");
+                autoHpAlert = GameConfig.getServerFloat("pet_auto_hp_ratio");
+                autoMpAlert = GameConfig.getServerFloat("pet_auto_mp_ratio");
             }
 
             if (hpchange < 0) {
@@ -8519,7 +8518,7 @@ public class Character extends AbstractCharacterObject {
             */
 
             for (Entry<StatUpgrade, Float> e : statups.entrySet()) {
-                Double ev = Math.sqrt(e.getValue());
+                double ev = Math.sqrt(e.getValue());
 
                 Set<Equip> extraEquipped = new LinkedHashSet<>(equipUpgrades.keySet());
                 List<Equip> statEquipped = getEquipsWithStat(upgradeableEquipped, e.getKey());
@@ -8696,7 +8695,7 @@ public class Character extends AbstractCharacterObject {
         effLock.lock();
         chrLock.lock();
         try {
-            return coolDowns.containsKey(Integer.valueOf(skillId));
+            return coolDowns.containsKey(skillId);
         } finally {
             chrLock.unlock();
             effLock.unlock();
@@ -8846,22 +8845,13 @@ public class Character extends AbstractCharacterObject {
         Object[] objs = questUpdate.getRight();
 
         switch (questUpdate.getLeft()) {
-            case UPDATE:
-                sendPacket(PacketCreator.updateQuest(chr, (QuestStatus) objs[0], (Boolean) objs[1]));
-                break;
-
-            case FORFEIT:
-                sendPacket(PacketCreator.forfeitQuest((Short) objs[0]));
-                break;
-
-            case COMPLETE:
-                sendPacket(PacketCreator.completeQuest((Short) objs[0], (Long) objs[1]));
-                break;
-
-            case INFO:
+            case UPDATE -> sendPacket(PacketCreator.updateQuest(chr, (QuestStatus) objs[0], (Boolean) objs[1]));
+            case FORFEIT -> sendPacket(PacketCreator.forfeitQuest((Short) objs[0]));
+            case COMPLETE -> sendPacket(PacketCreator.completeQuest((Short) objs[0], (Long) objs[1]));
+            case INFO -> {
                 QuestStatus qs = (QuestStatus) objs[0];
                 sendPacket(PacketCreator.updateQuestInfo(qs.getQuest().getId(), qs.getNpc()));
-                break;
+            }
         }
     }
 
@@ -9018,7 +9008,7 @@ public class Character extends AbstractCharacterObject {
     }
 
     private void updateSingleStat(Stat stat, int newval, boolean itemReaction) {
-        sendPacket(PacketCreator.updatePlayerStats(Collections.singletonList(new Pair<>(stat, Integer.valueOf(newval))), itemReaction, this));
+        sendPacket(PacketCreator.updatePlayerStats(Collections.singletonList(new Pair<>(stat, newval)), itemReaction, this));
     }
 
     public void sendPacket(Packet packet) {
@@ -9140,14 +9130,21 @@ public class Character extends AbstractCharacterObject {
     }
 
     public void autoBan(String reason) {
-        if (this.isGM() || this.isBanned()) {  // thanks RedHat for noticing GM's being able to get banned
+        if (this.isBanned()) { //已被封禁则返回
             return;
         }
+
+        if (this.getAutoBanManager().useAutoBanLog() && this.gmLevel() >= 4) { //高等级GM不封禁，但进行提示
+            log.warn("[自动封禁] 玩家 {} GM等级 {} ，触发自动封禁，但GM等级≥4，未被封禁。",this.name,this.gmLevel());
+            return;
+        }
+
         this.ban(reason);
         sendPacket(PacketCreator.sendPolice(I18nUtil.getMessage("Character.autoBan.message1")));  //发送自动封禁提示
+        this.getAutoBanManager().applyDebuffPunishment(5000); //防止被封禁玩家继续操作。
         TimerManager.getInstance().schedule(() -> client.disconnect(false, false), 5000);
 
-        Server.getInstance().broadcastGMMessage(this.getWorld(), PacketCreator.serverNotice(6, Character.makeMapleReadable(this.name) + " was autobanned for " + reason));
+        Server.getInstance().broadcastGMMessage(this.getWorld(), PacketCreator.serverNotice(6, "[自动封禁]" + this.name + " 触发自动封禁，原因：" + reason));
     }
 
     public void block(int reason, int days, String desc) {
@@ -9459,8 +9456,8 @@ public class Character extends AbstractCharacterObject {
                 setListener(null);
 
                 // thanks Shavit for noticing a memory leak with inventories holding owner object
-                for (int i = 0; i < inventory.length; i++) {
-                    inventory[i].dispose();
+                for (Inventory items : inventory) {
+                    items.dispose();
                 }
                 inventory = null;
             }, MINUTES.toMillis(5));
@@ -9859,10 +9856,10 @@ public class Character extends AbstractCharacterObject {
     }
 
     /**
-     * 获取地图类
+     * 根据地图ID获取地图对象
      * @param mapid 地图ID
-     * @param showMsg   true = 地图不存在弹出提示，false = 不提示
-     * @return
+     * @param showMsg true = 地图不存在时弹出提示，false = 不提示
+     * @return MapleMap 地图对象，如果地图不存在且showMsg为true则返回null并发送提示消息
      */
     public MapleMap getMap(int mapid, boolean showMsg) {
         MapleMap map = null;

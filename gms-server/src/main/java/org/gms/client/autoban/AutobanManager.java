@@ -153,6 +153,7 @@ public class AutobanManager {
             } else {
                 // 记录日志
                 if (useAutoBanLog()) {
+                    Server.getInstance().broadcastGMMessage(chr.getWorld(), PacketCreator.sendYellowTip("[异常提示] 玩家 " + chr.getName() + " 在地图 " + chr.getMap().getMapName() + "(" + chr.getMapId() + ") 触发 " + chr.getName() + " - " + reason));
                     log.warn("[异常检测] 玩家 {} 在地图 {}({}) 触发 {} 惩罚点数已满 {}，增加封号点数至 {}", chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), fac.getMaximum(),currentBanPoints);
                 }
             }
