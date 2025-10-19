@@ -3116,66 +3116,89 @@ public class Character extends AbstractCharacterObject {
         sendPacket(PacketCreator.getShowExpGain((int) gain, equip, party, inChat, white));
     }
 
-    private synchronized void gainExpInternal(long gain, int equip, int party, boolean show, boolean inChat, boolean white) {   // need of method synchonization here detected thanks to MedicOP
+    /**
+     * 内部经验获取方法，处理角色经验增长的核心逻辑
+     * 
+     * @param gain 基础经验 gain
+     * @param equip 装备提供的额外经验
+     * @param party 组队经验加成
+     * @param show 是否显示经验获取效果
+     * @param inChat 是否在聊天框中显示
+     * @param white 是否以白色字体显示(通常用于任务经验)
+     * 
+     * 该方法通过同步确保经验计算的线程安全性，防止并发问题导致的经验异常
+     */
+    private synchronized void gainExpInternal(long gain, int equip, int party, boolean show, boolean inChat, boolean white) {
+        // 计算总经验 gain = 基础经验 + 装备经验 + 组队经验
         long total = gain + equip + party;
-//        if (!GameConfig.getServerBoolean("anticheat_exp_sanction")) total = Math.max(total,-exp.get());  //如果不允许经验惩罚，则不会扣到负经验。
+        // 防止经验总值下溢，设置最小值限制
         if (total < Integer.MIN_VALUE) total = Integer.MIN_VALUE;
+        // 检查角色等级是否未达到最大等级 且 允许获得经验(活动期间可能禁用经验获取)
         if (level <= getMaxLevel() && (allowExpGain || this.getEventInstance() != null)) {
-            long leftover = 0;
-            long nextExp = exp.get() + total;
-
+            long leftover = 0;  // 用于存储超过当前等级最大经验后的剩余经验
+            long nextExp = exp.get() + total;  // 计算获得经验后的总经验数
+            // 处理经验上限溢出情况
             if (nextExp > (long) Integer.MAX_VALUE) {
+                // 如果超出 Integer 最大值，则只增加到最大值的部分
                 total = Integer.MAX_VALUE - exp.get();
+                // 如果不是最高等级，计算超出部分作为剩余经验
                 if (level != getMaxLevel()) leftover = nextExp - Integer.MAX_VALUE;
             }
+            // 更新角色经验并通知客户端
             updateSingleStat(Stat.EXP, exp.addAndGet((int) total));
-            totalExpGained += total;
-            if (show) {
-                announceExpGain(gain, equip, party, inChat, white);
-            }
+            totalExpGained += total;  // 累计本次获得的总经验
+            // 如果需要显示经验获取效果，则向客户端发送相关数据包
+            if (show) announceExpGain(gain, equip, party, inChat, white);
+            // 升级处理循环 - 当经验足够升级时持续升级
             while (exp.get() >= ExpTable.getExpNeededForLevel(level) && level != getMaxLevel()) {
-                levelUp(true);
-
-                String msg = I18nUtil.getMessage("Character.levelUp.globalNotice", getName(), getMap().getMapName(), getLevel());
+                levelUp(true);  // 执行升级操作
+                // 全服升级公告逻辑
                 if (GameConfig.getServerBoolean("use_announce_global_level_up") && !isGM()) {
+                    String msg = I18nUtil.getMessage("Character.levelUp.globalNotice", getName(), getMap().getMapName(), getLevel());
+                    // 遍历所有在线玩家发送升级公告(排除在商城中的玩家避免弹窗骚扰)
                     for (Character player : getWorldServer().getPlayerStorage().getAllCharacters()) {
-                        // 如果玩家在商城，将会以弹窗的形式发送，一堆弹窗会把玩家逼疯！
                         if (player.getCashShop().isOpened()) {
-                            continue;
+                            continue;  // 跳过在商城中的玩家
                         }
-                        player.dropMessage(6, msg);
+                        player.dropMessage(6, msg);  // 发送黄色聊天框消息
                     }
-                    log.info(msg);
+                    log.info(msg);  // 记录日志
                 }
+                // 特殊处理最高等级情况
                 if (level == getMaxLevel()) {
+                    // 如果经验少于升级所需经验的99%，则停止升级循环
                     if (exp.get() < (ExpTable.getExpNeededForLevel(level) * 0.99)) {
                         break;
                     } else {
+                        // 否则将经验清零
                         setExp(0);
                         updateSingleStat(Stat.EXP, 0);
                         break;
                     }
                 }
+                // 如果启用了升级保护机制，则每次只升一级
                 if (GameConfig.getServerBoolean("use_level_up_protect")) break;
             }
 
+            // 递归处理剩余经验(当一次获得大量经验导致多级升级时)
             if (leftover > 0) {
                 gainExpInternal(leftover, equip, party, false, inChat, white);
             } else {
+                // 更新最后经验获取时间
                 lastExpGainTime = System.currentTimeMillis();
-
+                // 记录经验获取日志
                 if (GameConfig.getServerBoolean("use_exp_gain_log")) {
                     ExpLogRecord expLogRecord = new ExpLogger.ExpLogRecord(
-                            getWorldServer().getExpRate(),
-                            expCoupon,
-                            totalExpGained,
-                            exp.get(),
-                            new Timestamp(lastExpGainTime),
-                            id
+                            getWorldServer().getExpRate(),  // 世界经验倍率
+                            expCoupon,                      // 经验券倍率
+                            totalExpGained,                 // 累计获得经验
+                            exp.get(),                      // 当前经验
+                            new Timestamp(lastExpGainTime), // 时间戳
+                            id                              // 角色ID
                     );
                     ExpLogger.putExpLogRecord(expLogRecord);
                 }
-
+                // 重置累计经验计数器
                 totalExpGained = 0;
             }
         }
