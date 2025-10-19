@@ -122,7 +122,7 @@ public class AutobanManager {
         punishPoints.put(fac, currentPunishPoints);
 
         // 记录日志
-        if (useAutoBanLog()) {
+        if (useAutoBanLog() && (fac != AutobanFactory.FAST_ATTACK || fac == AutobanFactory.FAST_ATTACK && currentPunishPoints > 3)) {
             log.warn("[异常预警] 玩家 {} 在地图 {}({}) 触发 {} {}, 惩罚点数: {}",chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), reason, currentPunishPoints);
         }
 
@@ -144,17 +144,19 @@ public class AutobanManager {
                     return 1; // 已封号
                 } else if (useAntiCheatDisconnect()) {
                     chr.getClient().disconnect(false,false);
-                    if (useAutoBanLog()) log.warn("[异常检测] 玩家 {} 在地图 {}({}) 因被检测到 {} 超过允许检测点数而被断开连接，具体原因 {}。",chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), reason);
+                    Server.getInstance().broadcastGMMessage(chr.getWorld(), PacketCreator.sendYellowTip("[异常触发] 玩家 " + chr.getName() + " 在地图 " + chr.getMap().getMapName() + "(" + chr.getMapId() + ") 因触发 " + fac.getName() + " 而被断开连接"));
+                    if (useAutoBanLog()) log.warn("[异常触发] 玩家 {} 在地图 {}({}) 因被检测到 {} 超过允许检测点数而被断开连接，具体原因 {}。",chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), reason);
                     return 1;
                 } else if (useAutoBanLog()) {
                     // 记录日志但不执行封号
-                    log.warn("[异常检测] 玩家 {} 在地图 {}({}) 因被检测到 {} 达到封号条件但未启用自动封禁，具体原因 {}。",chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), reason);
+                    Server.getInstance().broadcastGMMessage(chr.getWorld(), PacketCreator.sendYellowTip("[异常触发] 玩家 " + chr.getName() + " 在地图 " + chr.getMap().getMapName() + "(" + chr.getMapId() + ") 因触发 " + fac.getName() + " 但未启用自动封禁，因此无事发生。"));
+                    log.warn("[异常触发] 玩家 {} 在地图 {}({}) 因被检测到 {} 达到封号条件但未启用自动封禁，具体原因 {}。",chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), reason);
                 }
             } else {
                 // 记录日志
                 if (useAutoBanLog()) {
-                    Server.getInstance().broadcastGMMessage(chr.getWorld(), PacketCreator.sendYellowTip("[异常提示] 玩家 " + chr.getName() + " 在地图 " + chr.getMap().getMapName() + "(" + chr.getMapId() + ") 触发 " + chr.getName() + " - " + reason));
-                    log.warn("[异常检测] 玩家 {} 在地图 {}({}) 触发 {} 惩罚点数已满 {}，增加封号点数至 {}", chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), fac.getMaximum(),currentBanPoints);
+                    Server.getInstance().broadcastGMMessage(chr.getWorld(), PacketCreator.sendYellowTip("[异常触发] 玩家 " + chr.getName() + " 在地图 " + chr.getMap().getMapName() + "(" + chr.getMapId() + ") 触发 " + fac.getName() + " - " + reason));
+                    log.warn("[异常触发] 玩家 {} 在地图 {}({}) 触发 {} 惩罚点数已满 {}，增加封号点数至 {}", chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), fac.getMaximum(),currentBanPoints);
                 }
             }
             return 0; // 需要惩罚但未达到封号条件
@@ -228,6 +230,10 @@ public class AutobanManager {
      * @return true-触发了惩罚或封号, false-未触发任何操作
      */
     public boolean Detection_FastAttack(int skill, int skilllevel) {
+        int minAttackInterval = GameConfig.getServerInt("anti_cheat_fast_attack_interval");
+        if (minAttackInterval <= 0) {
+            return false;
+        }
         long currentTime = Server.getInstance().getCurrentTime();
         long lastAttackTime = getLastSpam(8);
         int lastSkill = (int) getLastSpam(9);
@@ -241,7 +247,6 @@ public class AutobanManager {
         
         // 计算攻击间隔
         long timeBetweenAttacks = currentTime - lastAttackTime;
-        int minAttackInterval = GameConfig.getServerInt("anti_cheat_fast_attack_interval");
         
         // 更新攻击时间和技能
         spam(8);
@@ -259,7 +264,11 @@ public class AutobanManager {
 //                AutobanFactory.FAST_ATTACK.alert(chr, "惩罚时间: " + punishmentDuration + "ms ,攻击间隔: " + timeBetweenAttacks + "ms");
                 chr.sendPacket(PacketCreator.earnTitleMessage("由于攻速过快，还需等待 " + punishmentDuration / 1000f + " 秒后才能恢复攻击。"));
             }
-            return true;
+            if (getPunishPoints(AutobanFactory.FAST_ATTACK) > 3) {
+                return true;
+            } else {
+                return false;
+            }
         }
         return false;
     }
