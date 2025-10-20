@@ -31,32 +31,51 @@ import org.gms.net.packet.InPacket;
 import org.gms.scripting.npc.NPCScriptManager;
 
 /**
- * @author Generic
+ * @author Generic<br>
+ * 远程扭蛋券处理器类<br>
+ * 处理客户端发送的远程扭蛋券使用请求
  */
 public final class RemoteGachaponHandler extends AbstractPacketHandler {
+
+    /**
+     * 处理远程扭蛋券数据包
+     * @param p 输入数据包
+     * @param c 客户端连接
+     */
     @Override
     public final void handlePacket(InPacket p, Client c) {
+        // 读取数据包中的票券ID和扭蛋机类型
         int ticket = p.readInt();
         int gacha = p.readInt();
+        // 验证票券ID是否合法
         if (ticket != ItemId.REMOTE_GACHAPON_TICKET) {
-            AutobanFactory.GENERAL.alert(c.getPlayer(), " Tried to use RemoteGachaponHandler with item id: " + ticket);
-            c.disconnect(false, false);
-            return;
-        } else if (gacha < 0 || gacha > 11) {
-            AutobanFactory.GENERAL.alert(c.getPlayer(), " Tried to use RemoteGachaponHandler with mode: " + gacha);
-            c.disconnect(false, false);
-            return;
-        } else if (c.getPlayer().getInventory(ItemConstants.getInventoryType(ticket)).countById(ticket) < 1) {
-            AutobanFactory.GENERAL.alert(c.getPlayer(), " Tried to use RemoteGachaponHandler without a ticket.");
+            AutobanFactory.GENERAL.alert(c.getPlayer(), "尝试使用非法物品ID调用远程扭蛋处理器: " + ticket);
             c.disconnect(false, false);
             return;
         }
-        int npcId = NpcId.GACHAPON_HENESYS;
+        // 验证扭蛋机类型是否在合法范围内(0-11)
+        else if (gacha < 0 || gacha > 11) {
+            AutobanFactory.GENERAL.alert(c.getPlayer(), "尝试使用非法模式调用远程扭蛋处理器: " + gacha);
+            c.disconnect(false, false);
+            return;
+        }
+        // 验证玩家是否拥有扭蛋券
+        else if (c.getPlayer().getInventory(ItemConstants.getInventoryType(ticket)).countById(ticket) < 1) {
+            AutobanFactory.GENERAL.alert(c.getPlayer(), "尝试在没有扭蛋券的情况下使用远程扭蛋处理器");
+            c.disconnect(false, false);
+            return;
+        }
+        // 根据扭蛋机类型确定对应的NPC ID
+        int npcId = NpcId.GACHAPON_HENESYS; // 默认设置为弓箭手村的扭蛋机
         if (gacha != 8 && gacha != 9) {
+            // 对于大多数类型，NPC ID是基础ID加上偏移量
             npcId += gacha;
         } else {
+            // 特殊处理类型8和9
             npcId = gacha == 8 ? NpcId.GACHAPON_NLC : NpcId.GACHAPON_NAUTILUS;
         }
+
+        // 启动对应的扭蛋机NPC脚本
         NPCScriptManager.getInstance().start(c, npcId, "gachaponRemote", null);
     }
 }
