@@ -83,7 +83,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     final int snCS = p.readInt();
                     ModifiedCashItemDO cItem = CashItemFactory.getItem(snCS);
                     if (!canBuy(chr, cItem, cs.getCash(useNX))) {
-                        log.error("无法出售带有序列号的现金物品 {}", snCS); // preventing NPE here thanks to MedicOP
+//                        log.error("无法出售带有序列号的现金物品 {}", snCS); // preventing NPE here thanks to MedicOP
                         c.enableCSActions();
                         return;
                     }
@@ -493,10 +493,20 @@ public final class CashOperationHandler extends AbstractPacketHandler {
     }
 
     private static boolean canBuy(Character chr, ModifiedCashItemDO item, int cash) {
-        if (item != null && item.isSelling() && item.getPrice() <= cash) {
+        if (item == null) {
+            log.warn("玩家 {} 尝试购买的道具不存在。", chr.getName(),cash);
+            return false;
+        }
+        if (!item.isSelling()) {
+            chr.dropMessage(1, "此道具已下架，暂时无法购买。");
+            log.warn("玩家 {} 尝试购买的道具 {} (SN {}) 不在售中。", chr.getName(), ItemInformationProvider.getInstance().getName(item.getItemId()), item.getSn());
+            return false;
+        }
+        if (item.getPrice() <= cash) {
             log.info("玩家 {} 购买了现金道具 {} (SN {}) 花费 {}", chr, ItemInformationProvider.getInstance().getName(item.getItemId()), item.getSn(), item.getPrice());
             return true;
         } else {
+            log.warn("玩家 {} 尝试购买的道具 {} (SN {}) 的价格 {} 大于现金 {}", chr.getName(), ItemInformationProvider.getInstance().getName(item.getItemId()), item.getSn(), item.getPrice(), cash);
             return false;
         }
     }
