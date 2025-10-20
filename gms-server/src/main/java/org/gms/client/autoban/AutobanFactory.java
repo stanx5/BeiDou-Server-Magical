@@ -23,9 +23,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package org.gms.client.autoban;
 
 import org.gms.client.Character;
-import org.gms.config.GameConfig;
-import org.gms.net.server.Server;
-import org.gms.util.PacketCreator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +53,7 @@ public enum AutobanFactory {
     SHORT_ITEM_VAC("短距离吸物"),
     ITEM_VAC("吸物"),
     FAST_ITEM_PICKUP(5, SECONDS.toMillis(30), "快速物品拾取"),
-    FAST_ATTACK(10, MILLISECONDS.toMillis(200), "快速攻击"),
+    FAST_ATTACK(10, MILLISECONDS.toMillis(1000), "快速攻击"),
     MISS_HACK(7,SECONDS.toMillis(5), "MISS无敌"),
     MPCON(25, SECONDS.toMillis(30), "MP消耗");
 

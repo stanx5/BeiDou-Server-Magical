@@ -9,8 +9,6 @@ import org.gms.client.Character;
 import org.gms.client.Disease;
 import org.gms.client.SkillFactory;
 import org.gms.config.GameConfig;
-import org.gms.constants.skills.Bowmaster;
-import org.gms.constants.skills.WindArcher;
 import org.gms.net.server.Server;
 import org.gms.server.life.MobSkillFactory;
 import org.gms.server.life.MobSkillType;
@@ -122,7 +120,7 @@ public class AutobanManager {
         punishPoints.put(fac, currentPunishPoints);
 
         // 记录日志
-        if (useAutoBanLog() && (fac != AutobanFactory.FAST_ATTACK || fac == AutobanFactory.FAST_ATTACK && currentPunishPoints > 3)) {
+        if (useAutoBanLog() && (fac != AutobanFactory.FAST_ATTACK || currentPunishPoints > 3)) {
             log.warn("[异常预警] 玩家 {} 在地图 {}({}) 触发 {} {}, 惩罚点数: {}",chr.getName(), chr.getMap().getMapName(),chr.getMapId(), fac.getName(), reason, currentPunishPoints);
         }
 
@@ -236,12 +234,10 @@ public class AutobanManager {
         }
         long currentTime = Server.getInstance().getCurrentTime();
         long lastAttackTime = getLastSpam(8);
-        int lastSkill = (int) getLastSpam(9);
         
         // 如果是第一次攻击，记录时间并返回
         if (lastAttackTime == 0) {
             spam(8);
-            spam(9, skill);
             return false;
         }
         
@@ -250,10 +246,9 @@ public class AutobanManager {
         
         // 更新攻击时间和技能
         spam(8);
-        spam(9, skill);
         
         // 检查攻击间隔是否小于最小允许间隔，且为相同技能
-        if ((skill != Bowmaster.HURRICANE && skill != WindArcher.HURRICANE) && timeBetweenAttacks < minAttackInterval && lastSkill == skill) {//暴风箭雨无需检测
+        if ((skill == 0 || SkillFactory.getSkill(skill).getAnimationTime() > 0) && timeBetweenAttacks < minAttackInterval) { //攻击动画>0才需要检测
             // 使用点数系统处理
             int result = addPoint(AutobanFactory.FAST_ATTACK, (skill > 0 ? "技能: " + SkillFactory.getSkillName(skill) + "[Lv." + skilllevel + "](" + skill + ")" : "普通攻击") + " 频率异常，间隔: " + timeBetweenAttacks + "ms (最小允许间隔: " + minAttackInterval + "ms)");
 
@@ -264,11 +259,7 @@ public class AutobanManager {
 //                AutobanFactory.FAST_ATTACK.alert(chr, "惩罚时间: " + punishmentDuration + "ms ,攻击间隔: " + timeBetweenAttacks + "ms");
                 chr.sendPacket(PacketCreator.earnTitleMessage("由于攻速过快，还需等待 " + punishmentDuration / 1000f + " 秒后才能恢复攻击。"));
             }
-            if (getPunishPoints(AutobanFactory.FAST_ATTACK) > 3) {
-                return true;
-            } else {
-                return false;
-            }
+            return getPunishPoints(AutobanFactory.FAST_ATTACK) > 3;
         }
         return false;
     }
