@@ -56,96 +56,106 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
         Character player = c.getPlayer();
         MapleMap map = player.getMap();
 
-        if (player.isChangingMaps()) {  // thanks Lame for noticing mob movement shuffle (mob OID on different maps) happening on map transitions
+        // 如果玩家正在切换地图，则不处理怪物移动，避免不同地图间怪物OID冲突
+        if (player.isChangingMaps()) {  // 感谢 Lame 注意到在地图切换时发生的怪物移动混乱问题（不同地图上的怪物OID）
             return;
         }
 
+        // 读取怪物对象ID和移动ID
         int objectid = p.readInt();
         short moveid = p.readShort();
-        MapObject mmo = map.getMapObject(objectid);
-        if (mmo == null || mmo.getType() != MapObjectType.MONSTER) {
+        MapObject mmo = map.getMapObject(objectid);// 根据对象ID获取地图对象
+        if (mmo == null || mmo.getType() != MapObjectType.MONSTER) {// 如果对象不存在或不是怪物类型，则返回
             return;
         }
 
-        Monster monster = (Monster) mmo;
-        List<Character> banishPlayers = null;
+        Monster monster = (Monster) mmo;// 将对象转换为怪物对象
+        List<Character> banishPlayers = null; // 存储被驱逐的玩家列表
 
-        byte pNibbles = p.readByte();
-        byte rawActivity = p.readByte();
-        int skillId = p.readByte() & 0xff;
-        int skillLv = p.readByte() & 0xff;
-        short pOption = p.readShort();
-        p.skip(8);
+        // 读取怪物移动相关的各种参数
+        byte pNibbles = p.readByte();      // 移动标志位
+        byte rawActivity = p.readByte();   // 原始活动状态
+        int skillId = p.readByte() & 0xff; // 技能ID
+        int skillLv = p.readByte() & 0xff; // 技能等级
+        short pOption = p.readShort();     // 选项参数
+        p.skip(8); // 跳过8个字节的未知数据
 
-        if (rawActivity >= 0) {
+        if (rawActivity >= 0) {// 处理原始活动状态值
             rawActivity = (byte) (rawActivity & 0xFF >> 1);
         }
 
-        boolean isAttack = inRangeInclusive(rawActivity, 24, 41);
-        boolean isSkill = inRangeInclusive(rawActivity, 42, 59);
+        boolean isAttack = inRangeInclusive(rawActivity, 24, 41);// 判断是否为攻击行为(活动状态在24-41范围内)
+        boolean isSkill = inRangeInclusive(rawActivity, 42, 59);// 判断是否为技能使用(活动状态在42-59范围内)
 
-        int useSkillId = 0;
-        int useSkillLevel = 0;
+        int useSkillId = 0;    // 实际使用的技能ID
+        int useSkillLevel = 0; // 实际使用的技能等级
 
-        if (isSkill) {
+        if (isSkill) {// 如果是技能使用
             useSkillId = skillId;
             useSkillLevel = skillLv;
 
-            if (monster.hasSkill(useSkillId, useSkillLevel)) {
+            if (monster.hasSkill(useSkillId, useSkillLevel)) {// 检查怪物是否拥有该技能
+                // 获取对应的怪物技能类型和技能实例
                 MobSkillType mobSkillType = MobSkillType.from(useSkillId).orElseThrow();
                 MobSkill toUse = MobSkillFactory.getMobSkillOrThrow(mobSkillType, useSkillLevel);
 
-                if (monster.canUseSkill(toUse, true)) {
-                    int animationTime = MonsterInformationProvider.getInstance().getMobSkillAnimationTime(toUse);
-                    if (animationTime > 0 && toUse.getType() != MobSkillType.BANISH) {
-                        toUse.applyDelayedEffect(player, monster, true, animationTime);
-                    } else {
+                if (monster.canUseSkill(toUse, true)) {// 检查怪物是否可以使用该技能
+                    int animationTime = MonsterInformationProvider.getInstance().getMobSkillAnimationTime(toUse);// 获取技能动画时间
+                    if (animationTime > 0 && toUse.getType() != MobSkillType.BANISH) {// 根据技能类型和动画时间决定如何应用效果
+                        toUse.applyDelayedEffect(player, monster, true, animationTime);// 延迟应用技能效果
+                    } else {// 立即应用技能效果，特别是驱逐类技能
                         banishPlayers = new LinkedList<>();
                         toUse.applyEffect(player, monster, true, banishPlayers);
                     }
                 }
             }
-        } else {
-            int castPos = (rawActivity - 24) / 2;
-            int atkStatus = monster.canUseAttack(castPos, isSkill);
-            if (atkStatus < 1) {
+        } else {// 如果不是技能使用，则检查攻击行为
+            int castPos = (rawActivity - 24) / 2; // 计算攻击位置
+            int atkStatus = monster.canUseAttack(castPos, isSkill); // 检查能否使用攻击
+            if (atkStatus < 1) {// 如果不能使用攻击，则重置活动状态和选项
                 rawActivity = -1;
                 pOption = 0;
             }
         }
 
+        // 判断下次移动是否可能使用技能
         boolean nextMovementCouldBeSkill = !(isSkill || (pNibbles != 0));
-        MobSkill nextUse = null;
-        int nextSkillId = 0;
-        int nextSkillLevel = 0;
-        int mobMp = monster.getMp();
-        if (nextMovementCouldBeSkill && monster.hasAnySkill()) {
+        MobSkill nextUse = null;    // 下次可能使用的技能
+        int nextSkillId = 0;        // 下次可能使用的技能ID
+        int nextSkillLevel = 0;     // 下次可能使用的技能等级
+        int mobMp = monster.getMp(); // 怪物当前MP值
+        if (nextMovementCouldBeSkill && monster.hasAnySkill()) {// 如果下次移动可能使用技能且怪物拥有技能
+            // 随机获取一个技能
             MobSkillId skillToUse = monster.getRandomSkill();
             nextSkillId = skillToUse.type().getId();
             nextSkillLevel = skillToUse.level();
             nextUse = MobSkillFactory.getMobSkillOrThrow(skillToUse.type(), skillToUse.level());
 
+            // 检查技能使用条件：技能存在、可以使用、HP条件满足、MP足够
             if (!(nextUse != null && monster.canUseSkill(nextUse, false) && nextUse.getHP() >= (int) (((float) monster.getHp() / monster.getMaxHp()) * 100) && mobMp >= nextUse.getMpCon())) {
-                // thanks OishiiKawaiiDesu for noticing mobs trying to cast skills they are not supposed to be able
-
+                // 感谢 OishiiKawaiiDesu 注意到怪物试图施放它们不应该拥有的技能
+                // 如果条件不满足，则重置技能相关变量
                 nextSkillId = 0;
                 nextSkillLevel = 0;
                 nextUse = null;
             }
         }
 
+        // 读取起始坐标相关数据
         p.readByte();
-        p.readInt(); // whatever
-        short start_x = p.readShort(); // hmm.. startpos?
-        short start_y = p.readShort(); // hmm...
-        Point startPos = new Point(start_x, start_y - 2);
-        Point serverStartPos = new Point(monster.getPosition());
+        p.readInt(); // 未知用途的数据
+        short start_x = p.readShort(); // 起始X坐标
+        short start_y = p.readShort(); // 起始Y坐标
+        Point startPos = new Point(start_x, start_y - 2); // 调整后的起始位置
+        Point serverStartPos = new Point(monster.getPosition()); // 服务器端的起始位置
 
+        // 更新怪物的仇恨状态
         Boolean aggro = monster.aggroMoveLifeUpdate(player);
         if (aggro == null) {
-            return;
+            return; // 如果更新失败则返回
         }
 
+        // 向客户端发送怪物移动响应包，包含可能的下次技能信息
         if (nextUse != null) {
             c.sendPacket(PacketCreator.moveMonsterResponse(objectid, moveid, mobMp, aggro, nextSkillId, nextSkillLevel));
         } else {
@@ -154,23 +164,25 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
 
 
         try {
-            int movementDataStart = p.getPosition();
-            updatePosition(p, monster, -2);  // Thanks Doodle & ZERO傑洛 for noticing sponge-based bosses moving out of stage in case of no-offset applied
-            long movementDataLength = p.getPosition() - movementDataStart; //how many bytes were read by updatePosition
-            p.seek(movementDataStart);
+            int movementDataStart = p.getPosition();// 记录移动数据起始位置
+            updatePosition(p, monster, -2);// 更新怪物位置，-2是Y轴偏移量  // 感谢 Doodle & ZERO傑洛 注意到在未应用偏移量的情况下，基于海绵的Boss会移出舞台
+            long movementDataLength = p.getPosition() - movementDataStart;// 计算移动数据长度 // updatePosition读取的字节数
+            p.seek(movementDataStart);// 重新定位到移动数据起始位置
 
+            // 如果启用了移动调试日志，则记录相关信息
             if (GameConfig.getServerBoolean("use_debug_show_life_move")) {
-                log.info("{} rawAct: {}, opt: {}, skillId: {}, skillLv: {}, allowSkill: {}, mobMp: {}",
-                        isSkill ? "SKILL" : (isAttack ? "ATTCK" : ""), rawActivity, pOption, useSkillId,
+                log.info("{} 原始活动: {}, 选项: {}, 技能ID: {}, 技能等级: {}, 允许技能: {}, 怪物MP: {}",
+                        isSkill ? "技能" : (isAttack ? "攻击" : ""), rawActivity, pOption, useSkillId,
                         useSkillLevel, nextMovementCouldBeSkill, mobMp);
             }
 
-            map.broadcastMessage(player, PacketCreator.moveMonster(objectid, nextMovementCouldBeSkill, rawActivity, useSkillId, useSkillLevel, pOption, startPos, p, movementDataLength), serverStartPos);
-            //updatePosition(res, monster, -2); //does this need to be done after the packet is broadcast?
-            map.moveMonster(monster, monster.getPosition());
-        } catch (EmptyMovementException e) {
+//            log.info("怪物 {}({})(oid:{}) 移动到 {} , {}",monster.getName(), monster.getId(),monster.getObjectId(), monster.getPosition().getX(), monster.getPosition().getY());
+            map.broadcastMessage(player, PacketCreator.moveMonster(objectid, nextMovementCouldBeSkill, rawActivity, useSkillId, useSkillLevel, pOption, startPos, p, movementDataLength), serverStartPos);// 广播怪物移动消息给地图上的其他玩家
+            map.moveMonster(monster, monster.getPosition());// 更新地图中怪物的位置
+        } catch (EmptyMovementException e) {// 捕获空移动异常，不做特殊处理
         }
 
+        // 如果有需要驱逐的玩家，则执行驱逐操作
         if (banishPlayers != null) {
             for (Character chr : banishPlayers) {
                 chr.changeMapBanish(monster.getBanish().getMap(), monster.getBanish().getPortal(), monster.getBanish().getMsg());
@@ -178,6 +190,7 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
         }
     }
 
+    // 判断数值是否在指定范围内（包含边界）
     private static boolean inRangeInclusive(Byte pVal, Integer pMin, Integer pMax) {
         return !(pVal < pMin) || (pVal > pMax);
     }
