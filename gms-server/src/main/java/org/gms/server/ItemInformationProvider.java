@@ -608,10 +608,12 @@ public class ItemInformationProvider {
         Map<String, Integer> ret = new LinkedHashMap<>();
         Data item = getItemData(itemId);
         if (item == null) {
+            log.warn("物品 {}({}) 不存在", ItemInformationProvider.getInstance().getName(itemId),itemId);
             return null;
         }
         Data info = item.getChildByPath("info");
         if (info == null) {
+            log.warn("物品 {}({}) 没有信息数据", ItemInformationProvider.getInstance().getName(itemId),itemId);
             return null;
         }
         for (Data data : info.getChildren()) {
