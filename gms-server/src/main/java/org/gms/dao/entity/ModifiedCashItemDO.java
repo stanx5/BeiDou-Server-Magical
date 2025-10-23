@@ -151,7 +151,7 @@ public class ModifiedCashItemDO implements Serializable, Cloneable {
                     item.setExpiration(Server.getInstance().getCurrentTime() + DAYS.toMillis(1));
                     break;
             }
-        } else if (period == -1) {
+        } else if (period <= 0) {
             item.setExpiration(-1);
         } else {
             item.setExpiration(Server.getInstance().getCurrentTime() + DAYS.toMillis(period));

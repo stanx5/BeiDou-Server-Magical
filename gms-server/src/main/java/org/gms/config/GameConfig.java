@@ -7,6 +7,7 @@ import org.gms.dao.entity.GameConfigDO;
 import org.gms.manager.ServerManager;
 import org.gms.net.server.Server;
 import org.gms.net.server.world.World;
+import org.gms.server.CashShop;
 import org.gms.server.life.MonsterInformationProvider;
 import org.gms.service.ConfigService;
 import org.gms.util.Pair;
@@ -83,49 +84,26 @@ public class GameConfig {
             int index = Integer.parseInt(gameConfigDO.getConfigSubType());
             World world = Server.getInstance().getWorld(index);
             switch (gameConfigDO.getConfigCode()) {
-                case "exp_rate":
-                    world.setExpRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "meso_rate":
-                    world.setMesoRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "drop_rate":
-                    world.setDropRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "boss_drop_rate":
-                    world.setBossDropRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "quest_rate":
-                    world.setQuestRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "travel_rate":
-                    world.setTravelRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "fishing_rate":
-                    world.setFishingRate(Float.parseFloat(gameConfigDO.getConfigValue()));
-                    break;
-                case "server_message":
-                    world.setServerMessage(GameConfig.getWorldString(index, "server_message"));
-                    break;
-                case "event_message":
-                    world.setEventMessage(GameConfig.getWorldString(index, "event_message"));
-                    break;
-                case "recommend_message":
-                    Server.getInstance().worldRecommendedList().set(index, new Pair<>(index, GameConfig.getWorldString(index, "recommend_message")));
-                    break;
-                case "flag":
-                    world.setFlag(GameConfig.getWorldByte(index, "flag"));
-                    break;
+                case "exp_rate" -> world.setExpRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "meso_rate" -> world.setMesoRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "drop_rate" -> world.setDropRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "boss_drop_rate" -> world.setBossDropRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "quest_rate" -> world.setQuestRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "travel_rate" -> world.setTravelRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "fishing_rate" -> world.setFishingRate(Float.parseFloat(gameConfigDO.getConfigValue()));
+                case "server_message" -> world.setServerMessage(GameConfig.getWorldString(index, "server_message"));
+                case "event_message" -> world.setEventMessage(GameConfig.getWorldString(index, "event_message"));
+                case "recommend_message" -> Server.getInstance().worldRecommendedList().set(index, new Pair<>(index, GameConfig.getWorldString(index, "recommend_message")));
+                case "flag" -> world.setFlag(GameConfig.getWorldByte(index, "flag"));
             }
         }
         // 重载其余部分
-        switch (gameConfigDO.getConfigCode()){
-            case "allow_steal_quest_item":
-                MonsterInformationProvider.getInstance().clearDrops();
-                break;
+        switch (gameConfigDO.getConfigCode()) {
+            case "allow_steal_quest_item" -> MonsterInformationProvider.getInstance().clearDrops();  //重载神通术
+            case "use_supply_rate_coupons" -> CashShop.CashItemFactory.processRateCouponItems(Boolean.parseBoolean(gameConfigDO.getConfigValue())); //重载商城是否允许出售倍率卡
+            case "use_pet_equip_permanent" -> CashShop.CashItemFactory.processPetEquipItems(Boolean.parseBoolean(gameConfigDO.getConfigValue()));  //重载宠物装备有效期
         }
     }
-
     public static Object getObject(String key) {
         return get(key, null);
     }

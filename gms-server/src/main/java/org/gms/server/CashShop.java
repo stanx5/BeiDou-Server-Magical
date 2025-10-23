@@ -128,7 +128,11 @@ public class CashShop {
         @Getter
         private static final List<CashCategory> cashCategories = new ArrayList<>();
         @Getter
-        private static final Map<Integer, ModifiedCashItemDO> modifiedCashItems = new HashMap<>();
+        private static final Map<Integer, ModifiedCashItemDO> modifiedCashItems = new HashMap<>();  //控制台商城管理存放缓存的商品
+        @Getter
+        private static final Map<Integer, ModifiedCashItemDO> discontinuedCashItems = new HashMap<>();  //已下架的商品
+        @Getter
+        private static final Map<Integer, ModifiedCashItemDO> permanentCashItems = new HashMap<>(); //永久的商品
 
         public static void loadAllCashItems() {
             DataProvider etc = DataProviderFactory.getDataProvider(WZFiles.ETC);
@@ -194,14 +198,29 @@ public class CashShop {
             loadAllModifiedCashItems();
         }
 
+
+        /**
+         * 加载所有修改过的现金商品数据
+         * 从数据库中获取所有经过修改的现金商品信息，并存储到modifiedCashItems映射中
+         * 这些商品信息会覆盖WZ文件中的默认商品数据
+         */
         public static void loadAllModifiedCashItems() {
+            // 清空现有的修改商品缓存
             modifiedCashItems.clear();
+            // 获取CashShopService实例并加载所有修改过的现金商品
             CashShopService cashShopService = ServerManager.getApplicationContext().getBean(CashShopService.class);
             cashShopService.loadAllModifiedCashItems().forEach(modifiedCashItemDO -> modifiedCashItems.put(modifiedCashItemDO.getSn(), modifiedCashItemDO));
         }
 
+        /**
+         * 加载商城分类数据
+         * 从数据库中获取所有商城商品分类信息，并添加到cashCategories列表中
+         * 用于构建商城界面的商品分类展示
+         */
         private static void loadCashCategories() {
-            modifiedCashItems.clear();
+            // 注意：此处原代码有误，应该是清空cashCategories而不是modifiedCashItems
+            cashCategories.clear();
+            // 获取CashShopService实例并加载所有商城分类
             CashShopService cashShopService = ServerManager.getApplicationContext().getBean(CashShopService.class);
             cashCategories.addAll(cashShopService.getAllCategoryList());
         }
@@ -220,6 +239,64 @@ public class CashShop {
 
         private static ModifiedCashItemDO getRandomItem(List<ModifiedCashItemDO> items) {
             return items.get(new Random().nextInt(items.size()));
+        }
+
+        /**
+         * 处理倍率卡商品的上架/下架状态<br>
+         * <br>
+         * @param sale true表示上架倍率卡商品，false表示下架倍率卡商品<br>
+         * <br>
+         * 当sale为false时，将所有倍率卡商品标记为下架状态并添加到已下架商品列表中<br>
+         * 当sale为true时，从已下架商品列表中移除所有倍率卡商品
+         */
+        public static void processRateCouponItems(boolean sale) {
+            if (!sale) { // 如果状态为下架，则将倍率卡商品标记为下架并添加到 discontinuedCashItems 列表中
+                // 遍历所有商品，筛选出倍率卡商品并将其设置为下架状态
+                items.values().stream()
+                        .filter(item -> ItemConstants.isRateCoupon(item.getItemId())) // 筛选倍率卡商品
+                        .forEach(item -> {
+                            item.setOnSale(0); // 设置为下架状态（0表示下架）
+                            discontinuedCashItems.put(item.getSn(), item); // 添加到已下架商品列表中
+                        });
+            } else {
+                // 如果状态为上架，则将所有倍率卡商品设置为上架状态，然后从已下架商品列表中移除
+                discontinuedCashItems.values().stream()
+                        .filter(item -> ItemConstants.isRateCoupon(item.getItemId()))
+                        .forEach(item -> item.setOnSale(1));
+                discontinuedCashItems.values().removeIf(item -> ItemConstants.isRateCoupon(item.getItemId()));
+            }
+        }
+
+        /**
+         * 处理宠物装备商品的永久化设置<br>
+         * <br>
+         * @param makePermanent true表示将符合条件的宠物装备设置为永久，false表示取消永久设置
+         * <br>
+         * 该方法根据makePermanent参数决定是否将宠物装备设置为永久有效：<br>
+         * 当makePermanent为true时，筛选出所有宠物装备商品中符合以下条件的商品：<br>
+         *   1. 是宠物装备（ItemConstants.isPetEquip判断）<br>
+         *   2. 属于装备类型（InventoryType.EQUIP）<br>
+         *   3. 具有升级槽位（getUpgradeSlots() > 0）<br>
+         * 对于符合条件的商品，将其有效期设为永久（period=0）并加入永久商品列表<br>
+         * <br>
+         * 当makePermanent为false时，从永久商品列表中移除所有宠物装备商品<br>
+         */
+        public static void processPetEquipItems(boolean makePermanent) {
+            if (makePermanent) {
+                items.values().stream()
+                        .filter(item -> ItemConstants.isPetEquip(item.getItemId())) //宠物装备
+                        .filter(item -> {
+                            Item cItem = item.toItem();
+                            return cItem.getInventoryType().equals(InventoryType.EQUIP) && ((Equip) cItem).getUpgradeSlots() > 0;
+                        })
+                        .forEach(item -> {
+                            ModifiedCashItemDO clonedItem = item.clone();// 创建副本，不修改原始数据
+                            clonedItem.setPeriod(0L);
+                            permanentCashItems.put(clonedItem.getSn(), clonedItem);
+                        });
+            } else {
+                permanentCashItems.values().removeIf(item -> (ItemConstants.isPetEquip(item.getItemId()) && item.toItem().getInventoryType().equals(InventoryType.EQUIP) && ((Equip) item.toItem()).getUpgradeSlots() > 0));
+            }
         }
 
         public static ModifiedCashItemDO getItem(int sn) {
@@ -274,6 +351,14 @@ public class CashShop {
     public record CashShopSurpriseResult(Item usedCashShopSurprise, Item reward) {
     }
 
+    public String getCashName(int type) {
+        return switch (type) {
+            case NX_CREDIT -> "点券";
+            case MAPLE_POINT -> "抵用券";
+            case NX_PREPAID -> "信用点";
+            default -> "未知:" + type;
+        };
+    }
     public int getCash(int type) {
         return switch (type) {
             case NX_CREDIT -> nxCredit;
@@ -281,7 +366,6 @@ public class CashShop {
             case NX_PREPAID -> nxPrepaid;
             default -> 0;
         };
-
     }
 
     public void gainCash(int type, int cash) {

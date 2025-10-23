@@ -82,18 +82,17 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     final int useNX = p.readInt();
                     final int snCS = p.readInt();
                     ModifiedCashItemDO cItem = CashItemFactory.getItem(snCS);
-                    if (!canBuy(chr, cItem, cs.getCash(useNX))) {
-//                        log.error("无法出售带有序列号的现金物品 {}", snCS); // preventing NPE here thanks to MedicOP
+                    if (cItem == null || !canBuy(chr, cItem, cs.getCash(useNX),useNX)) {
+                        if (cItem == null) {
+                            chr.dropMessage(1, "该商品未入库，暂时无法购买。");
+                            log.warn("玩家 {} 尝试购买的道具不存在，SN {}。", chr.getName(),snCS);
+                        }
                         c.enableCSActions();
                         return;
                     }
 
                     if (action == 0x03) { // Item
                         if (ItemConstants.isCashStore(cItem.getItemId()) && chr.getLevel() < 16) {
-                            c.enableCSActions();
-                            return;
-                        } else if (ItemConstants.isRateCoupon(cItem.getItemId()) && !GameConfig.getServerBoolean("use_supply_rate_coupons")) {
-                            chr.dropMessage(1, "倍率卡目前已暂停购买。");
                             c.enableCSActions();
                             return;
                         } else if (ItemConstants.isMapleLife(cItem.getItemId()) && chr.getLevel() < 30) {
@@ -110,9 +109,25 @@ public final class CashOperationHandler extends AbstractPacketHandler {
 
                         List<Item> cashPackage = CashItemFactory.getPackage(cItem.getItemId());
                         for (Item item : cashPackage) {
+                            if (GameConfig.getServerBoolean("use_pet_equip_permanent") && ItemConstants.isPetEquip(item.getItemId())) {//商城是否允许将可升级次数>0的宠物装备时效设为永久。
+                                if (item.getInventoryType().equals(InventoryType.EQUIP) && ((Equip) item).getUpgradeSlots() > 0) {
+                                    item.setExpiration(-1L);
+                                }
+                            }
                             cs.addToInventory(item);
                         }
                         c.sendPacket(PacketCreator.showBoughtCashPackage(cashPackage, c.getAccID()));
+                        log.info("玩家 {} 购买的礼包 {} (SN {}) 内含如下道具：[\r\n{}\r\n]",
+                                chr.getName(),
+                                cItem.getItemId(),
+                                cItem.getSn(),
+                                String.join("\r\n",cashPackage.stream().map(
+                                        item -> ItemInformationProvider.getInstance().getName(item.getItemId()) +
+                                                "(" + item.getItemId() + ") (SN "+item.getSN()+") 有效期 " + (item.getExpiration() <= 0 ? "永久" : (((item.getExpiration() - System.currentTimeMillis()) / (24 * 60 * 60 * 1000L)) + 1) + "天") +
+                                                " 数量 " + item.getQuantity()
+                                    ).toList()
+                                )
+                        );
                     }
                     c.sendPacket(PacketCreator.showCash(chr));
                 } else if (action == 0x04) {//TODO check for gender with gift
@@ -121,7 +136,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     CharacterService characterService = ServerManager.getApplicationContext().getBean(CharacterService.class);
                     CharactersDO charactersDO = characterService.findByName(p.readString());
                     String message = p.readString();
-                    if (!canBuy(chr, cItem, cs.getCash(CashShop.NX_PREPAID)) || message.isEmpty() || message.length() > 73) {
+                    if (!canBuy(chr, cItem, cs.getCash(CashShop.NX_PREPAID),CashShop.NX_PREPAID) || message.isEmpty() || message.length() > 73) {
                         c.enableCSActions();
                         return;
                     }
@@ -186,7 +201,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                             return;
                         }
                         int type = (cItem.getItemId() - 9110000) / 1000;
-                        if (!canBuy(chr, cItem, cs.getCash(cash))) {
+                        if (!canBuy(chr, cItem, cs.getCash(cash),cash)) {
                             c.enableCSActions();
                             return;
                         }
@@ -230,7 +245,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     } else {
                         ModifiedCashItemDO cItem = CashItemFactory.getItem(p.readInt());
 
-                        if (!canBuy(chr, cItem, cs.getCash(cash))) {
+                        if (!canBuy(chr, cItem, cs.getCash(cash),cash)) {
                             c.enableCSActions();
                             return;
                         }
@@ -255,7 +270,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     int cash = p.readInt();
                     ModifiedCashItemDO cItem = CashItemFactory.getItem(p.readInt());
 
-                    if (!canBuy(chr, cItem, cs.getCash(cash))) {
+                    if (!canBuy(chr, cItem, cs.getCash(cash),cash)) {
                         c.enableCSActions();
                         return;
                     }
@@ -414,7 +429,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     c.sendPacket(PacketCreator.showCash(c.getPlayer()));
                 } else if (action == 0x2E) { //name change
                     ModifiedCashItemDO cItem = CashItemFactory.getItem(p.readInt());
-                    if (cItem == null || !canBuy(chr, cItem, cs.getCash(CashShop.NX_PREPAID))) {
+                    if (cItem == null || !canBuy(chr, cItem, cs.getCash(CashShop.NX_PREPAID),CashShop.NX_PREPAID)) {
                         c.sendPacket(PacketCreator.showCashShopMessage((byte) 0));
                         c.enableCSActions();
                         return;
@@ -443,7 +458,7 @@ public final class CashOperationHandler extends AbstractPacketHandler {
                     c.enableCSActions();
                 } else if (action == 0x31) { //world transfer
                     ModifiedCashItemDO cItem = CashItemFactory.getItem(p.readInt());
-                    if (cItem == null || !canBuy(chr, cItem, cs.getCash(CashShop.NX_PREPAID))) {
+                    if (cItem == null || !canBuy(chr, cItem, cs.getCash(CashShop.NX_PREPAID),CashShop.NX_PREPAID)) {
                         c.sendPacket(PacketCreator.showCashShopMessage((byte) 0));
                         c.enableCSActions();
                         return;
@@ -492,22 +507,48 @@ public final class CashOperationHandler extends AbstractPacketHandler {
         return c.checkBirthDate(cal);
     }
 
-    private static boolean canBuy(Character chr, ModifiedCashItemDO item, int cash) {
-        if (item == null) {
-            log.warn("玩家 {} 尝试购买的道具不存在。", chr.getName(),cash);
+    private static boolean canBuy(Character chr, ModifiedCashItemDO cItem, int cash, int useNX) {
+        if (cItem == null) {
             return false;
         }
-        if (!item.isSelling()) {
-            chr.dropMessage(1, "此道具已下架，暂时无法购买。");
-            log.warn("玩家 {} 尝试购买的道具 {} (SN {}) 不在售中。", chr.getName(), ItemInformationProvider.getInstance().getName(item.getItemId()), item.getSn());
+
+        // 将重复调用的方法设为变量
+        String playerName = chr.getName();
+        String itemName = ItemInformationProvider.getInstance().getName(cItem.getItemId());
+        int itemId = cItem.getItemId();
+        int sn = cItem.getSn();
+        int price = cItem.getPrice();
+
+        if (!cItem.isSelling()) {
+            chr.dropMessage(1, "该商品已下架，暂时无法购买。");
+            log.warn("玩家 {} 尝试购买的道具 {} (SN {}) 状态为已下架，购买失败。", playerName, itemName, sn);
             return false;
         }
-        if (item.getPrice() <= cash) {
-            log.info("玩家 {} 购买了现金道具 {} (SN {}) 花费 {}", chr, ItemInformationProvider.getInstance().getName(item.getItemId()), item.getSn(), item.getPrice());
-            return true;
-        } else {
-            log.warn("玩家 {} 尝试购买的道具 {} (SN {}) 的价格 {} 大于现金 {}", chr.getName(), ItemInformationProvider.getInstance().getName(item.getItemId()), item.getSn(), item.getPrice(), cash);
+
+        if (ItemConstants.isRateCoupon(itemId) && !GameConfig.getServerBoolean("use_supply_rate_coupons")) {
+            chr.dropMessage(1, "倍率卡目前已暂停购买。");
+            log.warn("玩家 {} 尝试购买的倍率卡 {}({}) (SN {}) 已被禁止购买。", playerName, itemName, itemId, sn);
             return false;
         }
+
+        if (price > cash) {
+            log.warn("玩家 {} 尝试购买的道具 {} (SN {}) 的价格 {} 大于现金 {}", playerName, itemName, sn, price, cash);
+            return false;
+        }
+
+        if (GameConfig.getServerBoolean("use_pet_equip_permanent") && ItemConstants.isPetEquip(itemId)) {//商城是否允许将可升级次数>0的宠物装备时效设为永久。
+            Item item = cItem.toItem();
+            if (item.getInventoryType().equals(InventoryType.EQUIP) && ((Equip) item).getUpgradeSlots() > 0) {
+                cItem.setPeriod(-1L);
+            }
+        }
+
+        // 重新获取period值，因为可能被修改
+        long period = cItem.getPeriod();
+        String periodDesc = period > 0 ? period + "天" : "永久";
+        String cashName = chr.getCashShop().getCashName(useNX);
+
+        log.info("玩家 {} 购买了现金道具 {}({}) (SN {}) 有效期 {} 数量 {} 花费 {}{}",playerName, itemName, itemId, sn, periodDesc, cItem.getCount(), price, cashName);
+        return true;
     }
 }

@@ -112,6 +112,7 @@ import java.util.*;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Frz
@@ -7203,14 +7204,27 @@ public class PacketCreator {
                     (byte) 0x4E, (byte) 0xC1, (byte) 0xCA, 1});
         } else {
             p.writeInt(0);
-            Collection<ModifiedCashItemDO> items = CashItemFactory.getModifiedCashItems().values();
+            // 使用 Stream 按优先级顺序合并和滤重
+            Map<Integer, ModifiedCashItemDO> itemMap = Stream.of(//生效的优先级从高到低，确保控制台商城管理的优先级最高，并且减少重复的现金道具。
+                            CashItemFactory.getDiscontinuedCashItems().values(), // 合并已下架现金道具列表
+                            CashItemFactory.getModifiedCashItems().values(),  // 获取修改过的现金道具信息
+                            CashItemFactory.getPermanentCashItems().values() // 合并永久现金道具列表
+                    )
+                    .flatMap(Collection::stream)
+                    .collect(Collectors.toMap(
+                            ModifiedCashItemDO::getSn,
+                            item -> item,
+                            (existing, replacement) -> existing, // 保留先出现的（高优先级）
+                            LinkedHashMap::new // 保持插入顺序
+                    ));
+            Collection<ModifiedCashItemDO> items = itemMap.values();
             p.writeShort(items.size());//Guess what
             for (ModifiedCashItemDO item : items) {
                 writeModifiedCashItem(p, item);
             }
             p.skip(121);
 
-            List<List<Integer>> mostSellers = c.getWorldServer().getMostSellerCashItems();
+            List<List<Integer>> mostSellers = c.getWorldServer().getMostSellerCashItems();  //获取热门销售现金道具
             for (int i = 1; i <= 8; i++) {
                 List<Integer> mostSellersTab = mostSellers.get(i);
 

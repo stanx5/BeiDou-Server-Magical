@@ -34,6 +34,7 @@ import org.gms.dao.entity.CharactersDO;
 import org.gms.dao.entity.PlayernpcsFieldDO;
 import org.gms.model.dto.ServerShutdownDTO;
 import org.gms.property.ServiceProperty;
+import org.gms.server.CashShop;
 import org.gms.util.*;
 import org.gms.model.pojo.NewYearCardRecord;
 import org.gms.client.processor.npc.FredrickProcessor;
@@ -674,6 +675,9 @@ public class Server {
                 future.get();
             }
             initExecutor.shutdown();
+            //加载商城自定义数据
+            CashShop.CashItemFactory.processRateCouponItems((GameConfig.getServerBoolean("use_supply_rate_coupons"))); //重载商城是否允许出售倍率卡
+            CashShop.CashItemFactory.processPetEquipItems(GameConfig.getServerBoolean("use_pet_equip_permanent"));  //重载宠物装备有效期
         } catch (Exception e) {
             log.error(I18nUtil.getLogMessage("Server.init.error1"), e);
             throw new IllegalStateException(e);

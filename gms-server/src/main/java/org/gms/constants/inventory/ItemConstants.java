@@ -107,6 +107,16 @@ public final class ItemConstants {
         return itemId / 1000 == 5000;
     }
 
+    /**
+     * 判断给定的物品ID是否为宠物装备
+     * 
+     * @param itemId 物品ID
+     * @return 如果是宠物装备则返回true，否则返回false
+     */
+    public static boolean isPetEquip(int itemId) {
+        return itemId / 100000 == 18;
+    }
+
     public static boolean isExpirablePet(int itemId) {
         return GameConfig.getServerBoolean("use_erase_pet_on_expiration") || itemId == ItemId.PET_SNAIL;
     }
