@@ -902,7 +902,7 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                     maxattack = maxattack * 2;
                 }
                 if (ret.numDamage > maxattack) {
-                    retban = AutobanFactory.DAMAGE_HACK.addPoint(chr.getAutoBanManager(),
+                    retban = AutobanFactory.DAMAGE_SEGMENTS_HACK.addPoint(chr.getAutoBanManager(),
                             "尝试使用: " + SkillFactory.getSkillName(ret.skill) + "[Lv." + ret.skilllevel + "](" + ret.skill + ")" +
                                     " 怪物: " + (monster != null ? monster.getName() + "[Lv."+monster.getLevel()+"]("+monster.getId()+")" : "null")+
                                     " 伤害段数: " + ret.numDamage + " 上限: " + maxattack + " 已纠正: " + maxattack);
@@ -962,8 +962,7 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                     );
                     damage = (int) maxWithCrit;
                 }
-
-                if (ret.skill == Marksman.SNIPE || (canCrit && damage > hitDmgMax)) {
+                if (ret.skill == Marksman.SNIPE || (canCrit && damage >= (hitDmgMax * 0.7))) {//尝试调低暴击判断上限，以便其他玩家能够看到更多暴击
                     // 如果技能是暴击，则反转伤害值以使其在客户端上正确显示。
                     damage = -Integer.MAX_VALUE + damage - 1;
                 }

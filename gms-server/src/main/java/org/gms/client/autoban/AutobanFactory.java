@@ -40,6 +40,7 @@ public enum AutobanFactory {
     GENERAL("通用检测"),
     FIX_DAMAGE(3,SECONDS.toMillis(10),"固定伤害"),
     DAMAGE_HACK(15, MINUTES.toMillis(1), "篡改伤害"),
+    DAMAGE_SEGMENTS_HACK(5, SECONDS.toMillis(10), "篡改段数"),
     DISTANCE_HACK(10, SECONDS.toMillis(30), "篡改距离"),
     PORTAL_DISTANCE(5, SECONDS.toMillis(30), "传送门距离"),
     PACKET_EDIT("封包编辑"),
