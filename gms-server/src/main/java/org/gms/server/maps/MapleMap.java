@@ -304,6 +304,13 @@ public class MapleMap {
         return getChannelServer().getMapFactory().getMap(returnMapId);
     }
 
+    /**
+     * 是否允许使用传送石（Trock）进行传送
+     */
+    public boolean isTrockMap() {
+        return returnMapId != MapId.NONE;
+    }
+
     public MapleMap getForcedReturnMap() {
         return getChannelServer().getMapFactory().getMap(forcedReturnMap);
     }

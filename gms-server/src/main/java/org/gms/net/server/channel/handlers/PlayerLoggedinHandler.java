@@ -563,6 +563,12 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
                 Server.getInstance().broadcastMessage(c.getWorld(),
                         PacketCreator.serverNotice(3, c.getChannel(), msg));
             }
+            // 上线欢迎广播（独立开关，可与其他登录通知共存）
+            if (GameConfig.getServerBoolean("use_login_welcome_broadcast")) {
+                String welcomeMsg = I18nUtil.getMessage("Character.login.welcomeBroadcast", player.getName());
+                Server.getInstance().broadcastMessage(c.getWorld(),
+                        PacketCreator.serverNotice(3, c.getChannel(), welcomeMsg));
+            }
             // Debuff 发送（仅在 diseases 和 newcomer 同时满足时）
             if (diseases != null) {
                 for (Entry<Disease, Pair<Long, MobSkill>> e : diseases.entrySet()) {

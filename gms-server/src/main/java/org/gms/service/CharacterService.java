@@ -1010,7 +1010,7 @@ public class CharacterService {
         // 保存地图位置
         saveSavedLocations(player.getId(), player.getSavedLocations());
         // 保存传送石位置
-        saveTrockLocations(player.getId(), player.getTrockMaps(), player.getVipTrockMaps());
+        saveTrockLocations(player.getId(), player.getTrockMaps(), player.getVipTrockMaps(), player.getScriptsTrockMaps());
         // 保存好友列表
         saveBuddies(player.getId(), player.getBuddylist());
         // 保存区域信息
@@ -1564,7 +1564,7 @@ public class CharacterService {
     }
 
     @Transactional
-    public void saveTrockLocations(int charId, List<Integer> trockMaps, List<Integer> vipTrockMaps) {
+    public void saveTrockLocations(int charId, List<Integer> trockMaps, List<Integer> vipTrockMaps, List<Integer> scriptTrockMaps) {
         List<TrocklocationsDO> dbLocs = trocklocationsMapper.selectListByQuery(QueryWrapper.create().where(TROCKLOCATIONS_DO.CHARACTERID.eq(charId)));
         // Map key: "mapId_vip"
         Map<String, TrocklocationsDO> dbLocMap = dbLocs.stream().collect(Collectors.toMap(d -> d.getMapid() + "_" + d.getVip(), Function.identity(), (a, b) -> a));
@@ -1598,6 +1598,20 @@ public class CharacterService {
                         doo.setVip(1);
                         trocklocationsMapper.insert(doo);
                     }
+                }
+            }
+        }
+
+        if (scriptTrockMaps != null) {
+            for (Integer mapId : scriptTrockMaps) {
+                String key = mapId + "_2";
+                processedKeys.add(key);
+                if (!dbLocMap.containsKey(key)) {
+                    TrocklocationsDO doo = new TrocklocationsDO();
+                    doo.setCharacterid(charId);
+                    doo.setMapid(mapId);
+                    doo.setVip(2);
+                    trocklocationsMapper.insert(doo);
                 }
             }
         }

@@ -426,6 +426,7 @@ public class Character extends AbstractCharacterObject {
     private byte pendantExp = 0, doorSlot = -1;
     private final List<Integer> trockmaps = new ArrayList<>();
     private final List<Integer> viptrockmaps = new ArrayList<>();
+    private final List<Integer> scriptTrockMaps = new ArrayList<>();
     @Getter
     private Map<String, Events> events = new LinkedHashMap<>();
     @Setter
@@ -6840,6 +6841,8 @@ public class Character extends AbstractCharacterObject {
                 if (trocklocationsDO.getVip() == 1) {
                     vip++;
                     chr.getVipTrockMaps().add(trocklocationsDO.getMapid());
+                } else if (trocklocationsDO.getVip() == 2) {
+                    // 跳过脚本传送点，单独处理
                 } else {
                     reg++;
                     chr.getTrockMaps().add(trocklocationsDO.getMapid());
@@ -6851,6 +6854,12 @@ public class Character extends AbstractCharacterObject {
             }
             if (reg < 5) {
                 chr.getTrockMaps().add(MapId.NONE);
+            }
+        }
+        // 加载脚本传送点（vip = 2）
+        for (TrocklocationsDO loc : trocklocationsDOList) {
+            if (loc.getVip() == 2) {
+                chr.getScriptsTrockMaps().add(loc.getMapid());
             }
         }
 
@@ -8983,6 +8992,28 @@ public class Character extends AbstractCharacterObject {
     public boolean isTrockMap(int id) {
         int index = trockmaps.indexOf(id);
         return index != -1;
+    }
+
+    // -- Script Trock (万能传送脚本专用) --
+
+    public List<Integer> getScriptsTrockMaps() {
+        return scriptTrockMaps;
+    }
+
+    public int getScriptsTrockSize() {
+        return scriptTrockMaps.size();
+    }
+
+    public void addScriptsTrockMap() {
+        scriptTrockMaps.add(getMapId());
+    }
+
+    public void deleteFromScriptsTrocks(int map) {
+        scriptTrockMaps.remove(Integer.valueOf(map));
+    }
+
+    public boolean isScriptsTrockMap(int id) {
+        return scriptTrockMaps.contains(id);
     }
 
     public int getVipTrockSize() {

@@ -1484,4 +1484,93 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
         nextLevelContext.setLastLevel(noLevel);
         nextLevelContext.setNextLevel(yesLevel);
     }
+
+    // ============================================================
+    //  在线玩家统计与追踪
+    // ============================================================
+
+    /**
+     * 当前地图是否允许使用传送功能
+     *
+     * @return 是否可传送
+     */
+    public boolean canTeleport() {
+        return getPlayer().getMap().isTrockMap();
+    }
+
+    /**
+     * 获取所有大区总在线人数
+     *
+     * @return 总在线玩家数
+     */
+    public int getOnlinePlayer() {
+        int total = 0;
+        for (World world : Server.getInstance().getWorlds()) {
+            if (world != null) {
+                total += world.getPlayerStorage().getSize();
+            }
+        }
+        return total;
+    }
+
+    /**
+     * 获取指定大区在线人数
+     *
+     * @param worldId 大区ID
+     * @return 该大区在线玩家数
+     */
+    public int getOnlinePlayerByWorld(int worldId) {
+        World world = Server.getInstance().getWorld(worldId);
+        return world != null ? world.getPlayerStorage().getSize() : 0;
+    }
+
+    /**
+     * 判断指定玩家是否在线（全服搜索）
+     *
+     * @param name 玩家名称
+     * @return 是否在线
+     */
+    public boolean isPlayerOnline(String name) {
+        for (World world : Server.getInstance().getWorlds()) {
+            if (world != null && world.isConnected(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 跟踪玩家：传送到目标玩家所在位置（需同一频道）
+     *
+     * @param playerName 目标玩家名称
+     */
+    public void trackPlayer(String playerName) {
+        Character currentPlayer = getPlayer();
+        World worldServer = Server.getInstance().getWorld(currentPlayer.getWorld());
+        if (worldServer == null) {
+            currentPlayer.dropMessage(5, "无法获取当前世界信息");
+            return;
+        }
+
+        Character targetPlayer = worldServer.getPlayerStorage().getCharacterByName(playerName);
+        if (targetPlayer == null) {
+            currentPlayer.dropMessage(5, "找不到玩家: " + playerName);
+            return;
+        }
+
+        if (!targetPlayer.isLoggedIn()) {
+            currentPlayer.dropMessage(5, "玩家不在线: " + playerName);
+            return;
+        }
+
+        if (currentPlayer.getClient().getChannel() != targetPlayer.getClient().getChannel()) {
+            currentPlayer.dropMessage(5, "玩家在不同频道: " + targetPlayer.getClient().getChannel());
+            return;
+        }
+
+        MapleMap targetMap = targetPlayer.getMap();
+        currentPlayer.saveLocationOnWarp();
+        currentPlayer.changeMap(targetMap, targetMap.findClosestPortal(targetPlayer.getPosition()));
+        log.info("玩家跟踪完成: {} -> {}", currentPlayer.getName(), playerName);
+    }
 }
