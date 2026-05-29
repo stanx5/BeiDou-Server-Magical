@@ -78,6 +78,10 @@ public final class NPCTalkHandler extends AbstractPacketHandler {
                     NPCScriptManager.getInstance().start(c, npc.getId(), "mapleTV", null);
                 } else if (GameConfig.getServerBoolean("use_rebirth_system") && npc.getId() == GameConfig.getServerInt("rebirth_npc_id")) {
                     NPCScriptManager.getInstance().start(c, npc.getId(), "rebirth", null);
+                } else if (npc.getId() == NpcId.BEI_DOU_NPC_BASE) {
+                    // 北斗NPC，每次打开时都解除假死
+                    c.sendPacket(PacketCreator.enableActions());
+                    NPCScriptManager.getInstance().start(c, npc.getId(), oid, null);
                 } else {
                     boolean hasNpcScript = NPCScriptManager.getInstance().start(c, npc.getId(), oid, null);
                     if (!hasNpcScript) {
